@@ -37,3 +37,13 @@ Statuses: ⬜ todo · 🟡 in progress (note which PACE) · ✅ done.
 
 ## Session log (append only — newest at bottom)
 - Phase 1 ✅ · Phase 2 ✅ (code; Firebase test pending on user's side)
+
+## Phase 13 reminders (Android + Firebase) � decided: set this up in Phase 13, not before
+- Firebase project ID: (fill in). Only a Web app is registered so far (Phase 2). The Android app is the same React code wrapped by Capacitor.
+- At Phase 13, in order:
+  1. Install Android Studio + JDK, add Capacitor (@capacitor/core @capacitor/cli @capacitor/android), then npx cap add android.
+  2. Register the Android app in Firebase: firebase apps:create android "Multi Purpose App Android" --package-name <your.package.name> --project <id>
+  3. Get the debug SHA-1 (cd android, then .\gradlew signingReport) and add it: firebase apps:android:sha:create <androidAppId> <sha1>. Add the release SHA-1 before building the final APK.
+  4. Download google-services.json into android/app/.
+  5. Use a native Google sign-in plugin for Capacitor (web popup sign-in is unreliable inside the Android WebView). Confirm the current plugin and steps at that time.
+  6. Test sign-in, offline sync and reminders on a real device.
