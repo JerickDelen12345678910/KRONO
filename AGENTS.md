@@ -30,7 +30,8 @@ src/components/layout/ AppShell, Header, Sidebar (>=820px), BottomNav (<820px), 
 src/components/ui/     Button, Card, KPICard, Pill, ToggleSwitch, SegmentedControl, FilterChips, Row, Stepper, NoteBanner, LineChart, Icon
 src/pages/    Dashboard, Scheduler, Fitness, MapPage, Account, Login
 src/routes/   AppRoutes, ProtectedRoute
-src/lib/firebase.js · src/hooks/useOnlineStatus.js
+src/models/   Shared data shapes + validators (pure JS, no UI/DB). `createX()` builds a record, `validateX()` returns { valid, errors }
+src/lib/firebase.js · src/hooks/useOnlineStatus.js · scripts/check-models.mjs (run: node scripts/check-models.mjs)
 firestore.rules · storage.rules · .env (never commit) · .env.example
 ```
 
@@ -40,6 +41,12 @@ firestore.rules · storage.rules · .env (never commit) · .env.example
 - Our class names must not collide with Bootstrap: use `ui-card`, `list-row`, `form-field` (never `.card`, `.row`).
 - No inline styles for layout. No emoji as icons (use `Icon`). Charts: **line only**.
 - Product rules: local-first saving then sync; **Sign out / Delete account disabled offline**; overlap warnings never block saving; maps/routes need internet; fitness text is general info, not medical advice.
+
+## 5b. Data conventions (models)
+- Dates `YYYY-MM-DD`, times `HH:mm` (local), timestamps ISO strings; weekdays 0=Sun..6=Sat.
+- Every synced record: `id, createdAt, updatedAt, version, deleted/deletedAt (soft delete), syncStatus (local|pending|syncing|synced), isSample`. Change records only with `touch()` / `markDeleted()`.
+- Recurring items = one `Schedule` definition + dated `Occurrence`s with deterministic id `${scheduleId}_${date}` (retries cannot duplicate).
+- Colors in models are token names (primary/slate/success/warning), never hex.
 
 ## 6. Known gotchas (already solved — don't reintroduce)
 - `ToggleSwitch` is a `<button>`: use `onClick` + `aria-checked`, not `onChange`/`:checked`.

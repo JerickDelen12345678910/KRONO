@@ -6,14 +6,14 @@
 - Build status: passing
 
 ## NEXT TASK  ← start here
-**Phase 3 — Shared application core, PACE 1:** create shared models/types (User, Activity, Schedule, Workout, Place) in `src/models/`. Stop after PACE 1 and report.
+**Phase 3 — Shared application core, PACE 2:** create the repository layer in `src/repositories/` (one shared interface: `list/get/create/update/remove` working on soft-delete + `touch`, an in-memory implementation for now, NO real database) and thin services in `src/services/` that call repositories. React components must never hold database logic. Add checks to `scripts/`. Stop after PACE 2 and report.
 
 ## Phase checklist (from docs/PROJECT_PLAN.md)
 | # | Phase | Status |
 |---|-------|--------|
 | 1 | Project foundation (Vite, Bootstrap+SCSS, responsive layout, UI components, Dashboard) | ✅ done |
 | 2 | Firebase + Google sign-in + profiles + security rules | ✅ code done · ⏳ user must add `.env` keys and test sign-in |
-| 3 | Shared core (models, services, repositories, error handling, activity structure) | ⬜ |
+| 3 | Shared core (models, services, repositories, error handling, activity structure) | 🟡 PACE 1 models ✅ · PACE 2 next |
 | 4 | Scheduler and calendar | ⬜ |
 | 5 | Android reminders | ⬜ |
 | 6 | Local databases (IndexedDB / SQLite) | ⬜ |
@@ -37,13 +37,14 @@ Statuses: ⬜ todo · 🟡 in progress (note which PACE) · ✅ done.
 
 ## Session log (append only — newest at bottom)
 - Phase 1 ✅ · Phase 2 ✅ (code; Firebase test pending on user's side)
+- Phase 3 PACE 1 ✅: `src/models/*` (constants, common, user, academic, schedule, workout, place, activity, index) + `scripts/check-models.mjs` (18 checks pass). Files changed: all new. No UI change.
 
-## Phase 13 reminders (Android + Firebase) � decided: set this up in Phase 13, not before
-- Firebase project ID: (fill in). Only a Web app is registered so far (Phase 2). The Android app is the same React code wrapped by Capacitor.
+## Phase 13 reminders (Android + Firebase) — decided: set this up in Phase 13, not before
+- Firebase project ID: (fill in). Only a **Web** app is registered so far (Phase 2). The Android app is the same React code wrapped by Capacitor.
 - At Phase 13, in order:
-  1. Install Android Studio + JDK, add Capacitor (@capacitor/core @capacitor/cli @capacitor/android), then npx cap add android.
-  2. Register the Android app in Firebase: firebase apps:create android "Multi Purpose App Android" --package-name <your.package.name> --project <id>
-  3. Get the debug SHA-1 (cd android, then .\gradlew signingReport) and add it: firebase apps:android:sha:create <androidAppId> <sha1>. Add the release SHA-1 before building the final APK.
-  4. Download google-services.json into android/app/.
-  5. Use a native Google sign-in plugin for Capacitor (web popup sign-in is unreliable inside the Android WebView). Confirm the current plugin and steps at that time.
+  1. Install Android Studio + JDK, add Capacitor (`@capacitor/core @capacitor/cli @capacitor/android`), `npx cap add android`.
+  2. Register the Android app in Firebase: `firebase apps:create android "Multi Purpose App Android" --package-name <your.package.name> --project <id>`.
+  3. Get the debug SHA-1 (`cd android` then `.\gradlew signingReport`) and add it: `firebase apps:android:sha:create <androidAppId> <sha1>`. Add the release SHA-1 before building the final APK.
+  4. Download `google-services.json` into `android/app/`.
+  5. Use a native Google sign-in plugin for Capacitor (web popup sign-in is unreliable inside the Android WebView) — confirm the current plugin and steps at that time.
   6. Test sign-in, offline sync and reminders on a real device.
