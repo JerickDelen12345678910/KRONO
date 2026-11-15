@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>All-in-One App – Product Design Preview</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap">
+<style>
+:root,[data-theme="light"]{--on:#fff;--bg:#F3F5F9;--sf:#fff;--sf2:#EDF0F6;--ink:#0E1A2B;--mu:#5B687B;--bd:#E1E6EE;--pri:#2F4BD9;--pri-s:#E9EDFC;--fit:#4A5A72;--fit-s:#EDF0F5;--map:var(--pri);--map-s:var(--pri-s);--prj:#4A5A72;--prj-s:#EDF0F5;--ok:#15803D;--ok-s:#E3F5E9;--warn:#B45309;--warn-s:#FEF3C7;--sh:0 1px 2px rgba(14,26,43,.06),0 4px 14px rgba(14,26,43,.05);
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}
+[data-theme="dark"]{--on:#0B111A;--bg:#0B111A;--sf:#141C28;--sf2:#1B2535;--ink:#EAF0F8;--mu:#93A0B4;--bd:#243044;--pri:#7C96FF;--pri-s:#1A2547;--fit:#A9B6CA;--fit-s:#222E42;--map:var(--pri);--map-s:var(--pri-s);--prj:#A9B6CA;--prj-s:#222E42;--ok:#4ADE80;--ok-s:#12301F;--warn:#FBBF24;--warn-s:#3A2E10;--sh:none;color-scheme:dark}
+*{box-sizing:border-box;margin:0}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{background:var(--bg);color:var(--ink);font:500 14px/1.5 Manrope,system-ui,sans-serif;padding:16px;font-variant-numeric:tabular-nums}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
+button:focus-visible{outline:2px solid var(--pri);outline-offset:2px}
+.i{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.bar{max-width:1200px;margin:0 auto 16px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between}
+.bar h1{font-size:18px;font-weight:800;letter-spacing:-.01em}.bar p{color:var(--mu);font-size:12px}
+.seg{display:inline-flex;background:var(--sf2);border-radius:10px;padding:3px;gap:2px}
+.seg button{padding:6px 12px;border-radius:8px;font-weight:700;font-size:13px;color:var(--mu)}
+.seg button.on{background:var(--sf);color:var(--ink);box-shadow:var(--sh)}
+.stage{max-width:1200px;margin:0 auto}
+.frame{container-type:inline-size;background:var(--bg);border:1px solid var(--bd);border-radius:22px;overflow:hidden;height:min(840px,calc(100vh - 110px));min-height:580px;box-shadow:var(--sh)}
+.stage.mobile .frame{width:min(390px,100%);margin:0 auto;border-width:6px;border-color:var(--ink);border-radius:36px}
+.stage.all{display:grid;gap:22px}.stage.all .frame{height:720px}.stage.all .frame.d{height:660px}
+.g6{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:22px}
+.cap{display:flex;justify-content:space-between;align-items:center;margin:0 4px 8px;font-weight:700;font-size:13px}.cap button{color:var(--pri);font-size:12px;font-weight:700}
+.tok{display:flex;flex-wrap:wrap;gap:18px;align-items:center;background:var(--sf);border:1px solid var(--bd);border-radius:16px;padding:16px}
+.tok i{display:inline-block;width:34px;height:34px;border-radius:10px;vertical-align:middle;margin-right:8px;border:1px solid var(--bd)}.tok span{font-size:12px;font-weight:700;margin-right:6px}
+.app{height:100%;display:grid;grid-template-columns:1fr;grid-template-rows:auto auto 1fr auto;grid-template-areas:"sb""top""main""nav"}
+.sb{grid-area:sb;display:flex;justify-content:space-between;padding:10px 22px 0;font-weight:800;font-size:12px;background:var(--sf)}
+.top{grid-area:top;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 16px 14px;background:var(--sf);border-bottom:1px solid var(--bd)}
+.top h2{font-size:20px;font-weight:800;letter-spacing:-.02em;line-height:1.2}.top small{color:var(--mu);font-size:12px;font-weight:600}
+.srch{display:none;align-items:center;gap:8px;background:var(--sf2);border-radius:10px;padding:9px 12px;color:var(--mu);min-width:260px;font-size:13px}
+.ico{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;background:var(--sf2);color:var(--mu)}
+.av{width:36px;height:36px;border-radius:50%;background:var(--ink);color:var(--sf);display:grid;place-items:center;font-weight:800;font-size:13px}
+.act{display:flex;gap:8px;align-items:center}
+.main{grid-area:main;overflow:auto;padding:16px;display:grid;gap:14px;align-content:start}
+.bnav{grid-area:nav;display:grid;grid-template-columns:repeat(5,1fr);background:var(--sf);border-top:1px solid var(--bd);padding:6px 4px 10px}
+.bnav button{display:grid;justify-items:center;gap:2px;padding:6px 0;font-size:11px;font-weight:700;color:var(--mu)}.bnav .on{color:var(--pri)}
+.side{grid-area:side;display:none;flex-direction:column;gap:2px;padding:20px 14px;background:var(--sf);border-right:1px solid var(--bd)}
+.brand{display:flex;gap:10px;align-items:center;padding:0 8px 18px;font-weight:800;font-size:16px}.brand b{width:32px;height:32px;border-radius:9px;background:var(--ink);color:var(--sf);display:grid;place-items:center}.brand small{display:block;font-size:11px;color:var(--mu);font-weight:600}
+.side button{display:flex;gap:12px;align-items:center;padding:10px 12px;border-radius:10px;font-weight:700;color:var(--mu);text-align:left}.side button.on{background:var(--pri-s);color:var(--pri)}
+.side .sync{margin-top:auto;border:1px solid var(--bd);border-radius:12px;padding:12px;font-size:12px;color:var(--mu)}.side .sync b{display:block;color:var(--ink);font-size:13px}
+@container (min-width:820px){
+.app{grid-template-columns:240px 1fr;grid-template-rows:auto 1fr;grid-template-areas:"side top""side main"}
+.side{display:flex}.bnav,.sb{display:none}.srch{display:flex}.top{padding:16px 28px}.main{padding:24px 28px;gap:20px}.cols{grid-template-columns:1.5fr 1fr!important}.cols.eq{grid-template-columns:320px 1fr!important}}
+.cols{display:grid;grid-template-columns:1fr;gap:16px;align-items:start}.stack{display:grid;gap:16px}
+.card{background:var(--sf);border:1px solid var(--bd);border-radius:16px;padding:16px;box-shadow:var(--sh)}
+.card h3{font-size:15px;font-weight:800;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;letter-spacing:-.01em}.card h3 span{font-size:12px;color:var(--mu);font-weight:600}
+.next{background:var(--ink);color:var(--sf);border-radius:20px;padding:20px;display:grid;gap:14px}
+.next small{opacity:.7;font-weight:600}.next h3{font-size:24px;letter-spacing:-.02em;line-height:1.2;font-weight:800}
+.next .btn{background:var(--sf);color:var(--ink)}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:99px;font-size:12px;font-weight:700;background:var(--pri-s);color:var(--pri)}
+.pill.f{background:var(--fit-s);color:var(--fit)}.pill.m{background:var(--map-s);color:var(--map)}.pill.w{background:var(--warn-s);color:var(--warn)}.pill.p{background:var(--prj-s);color:var(--prj)}
+.btn{display:inline-flex;gap:8px;align-items:center;justify-content:center;background:var(--pri);color:var(--on);font-weight:700;padding:11px 16px;border-radius:12px}
+.btn.s{background:var(--pri-s);color:var(--pri)}.btn.f{background:var(--fit)}.btn.m{background:var(--map)}.btn[disabled]{opacity:.45;cursor:not-allowed}.btn.w{width:100%}
+.qa{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.qa button{background:var(--sf);border:1px solid var(--bd);border-radius:14px;padding:12px 6px;font-weight:700;font-size:12px;display:grid;gap:6px;justify-items:center}
+.qa .ico{width:38px;height:38px}
+.row{display:flex;gap:12px;align-items:center;padding:12px 0;border-top:1px solid var(--bd)}.row:first-of-type{border-top:0;padding-top:0}.row:last-child{padding-bottom:0}
+.row .t{width:48px;font-size:12px;font-weight:700;color:var(--mu)}.row .bar2{width:4px;align-self:stretch;border-radius:4px}
+.row div{flex:1;min-width:0}.row b{display:block;font-weight:700}.row small{color:var(--mu);font-weight:500;font-size:12px}
+.chips{display:flex;gap:6px;flex-wrap:wrap}.chip{padding:6px 12px;border-radius:99px;background:var(--sf);border:1px solid var(--bd);font-size:12px;font-weight:700;color:var(--mu)}.chip.on{background:var(--ink);color:var(--sf);border-color:var(--ink)}
+.wk{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;text-align:center}.wk span{padding:8px 0;border-radius:12px;font-size:11px;color:var(--mu);font-weight:700;display:grid;gap:2px}.wk span b{font-size:15px;color:var(--ink)}.wk .on{background:var(--pri);color:var(--on)}.wk .on b{color:var(--on)}
+.tl{position:relative;height:560px;margin-left:44px}
+.tl i{position:absolute;left:0;right:0;border-top:1px solid var(--bd)}.tl i em{position:absolute;left:-44px;top:-8px;font-size:11px;color:var(--mu);font-style:normal;font-weight:600}
+.ev{position:absolute;border-radius:10px;padding:6px 9px;border-left:4px solid;font-size:12px;font-weight:700;overflow:hidden;line-height:1.3}.ev small{display:block;font-weight:500;opacity:.8}
+.now{position:absolute;left:-6px;right:0;border-top:2px solid var(--map)}.now:before{content:"";position:absolute;left:0;top:-5px;width:8px;height:8px;border-radius:50%;background:var(--map)}
+.note{display:flex;gap:10px;align-items:flex-start;background:var(--warn-s);color:var(--warn);padding:12px;border-radius:12px;font-size:12px;font-weight:600}.note.b{background:var(--pri-s);color:var(--pri)}
+.steps{display:flex;gap:8px}.steps div{flex:1;font-size:12px;font-weight:700;color:var(--mu)}.steps div:before{content:"";display:block;height:4px;border-radius:4px;background:var(--bd);margin-bottom:6px}.steps .on{color:var(--ink)}.steps .on:before{background:var(--pri)}
+.fld{display:grid;grid-template-columns:1fr auto;gap:2px 10px;padding:12px;background:var(--sf2);border-radius:12px;margin-top:8px}.fld small{color:var(--mu);font-weight:600;font-size:12px}.fld.lo{outline:2px solid var(--warn)}
+.file{display:flex;gap:12px;align-items:center}.file .ico{background:var(--pri-s);color:var(--pri)}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.stats b{display:block;font-size:22px;font-weight:800;letter-spacing:-.02em}.stats small{color:var(--mu);font-size:12px}
+.map{border-radius:16px;overflow:hidden;border:1px solid var(--bd);position:relative}.map .s{position:absolute;left:12px;right:12px;top:12px;display:flex;gap:8px;align-items:center;background:var(--sf);padding:10px 12px;border-radius:12px;box-shadow:var(--sh);color:var(--mu);font-size:13px}
+.alt{display:flex;justify-content:space-between;padding:12px;border:1px solid var(--bd);border-radius:12px;margin-bottom:8px}.alt.on{border-color:var(--map);background:var(--map-s)}.alt b{font-size:18px;letter-spacing:-.02em}
+.tg{width:40px;height:24px;border-radius:99px;background:var(--bd);position:relative;flex:none}.tg:after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff}.tg.on{background:var(--pri)}.tg.on:after{left:19px}
+.pipe{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;text-align:center;font-size:11px;font-weight:700;color:var(--mu)}.pipe span:before{content:"";display:block;height:6px;border-radius:6px;background:var(--bd);margin-bottom:6px}.pipe .d:before{background:var(--fit)}.pipe .c{color:var(--ink)}.pipe .c:before{background:var(--warn)}
+.lbl{font-size:12px;color:var(--mu);font-weight:700;margin:4px 0 -6px}
+.th{padding:12px;background:var(--bg);color:var(--ink);border-radius:26px;border:1px solid var(--bd)}
+.sec{display:flex;align-items:center;gap:10px;font-size:12px;font-weight:800;color:var(--mu);margin:4px 0 -4px}.sec:after{content:"";flex:1;height:1px;background:var(--bd)}
+.kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.kpi{border-radius:14px;padding:12px 14px;display:grid;gap:2px}.kpi b{font-size:26px;font-weight:800;letter-spacing:-.03em;line-height:1.1}.kpi small{font-size:12px;font-weight:700}.kpi span{font-size:11px;font-weight:600;opacity:.85}
+.kpi.pri{background:var(--pri-s);color:var(--pri)}.kpi.fit{background:var(--fit-s);color:var(--fit)}.kpi.map{background:var(--map-s);color:var(--map)}.kpi.prj{background:var(--prj-s);color:var(--prj)}
+.card.pri{border-top:3px solid var(--pri)}.card.fit{border-top:3px solid var(--fit)}.card.map{border-top:3px solid var(--map)}
+.hl{background:var(--map-s);color:var(--map);padding:1px 8px;border-radius:6px;font-weight:800}
+.lg{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12px;font-weight:700;color:var(--mu)}.lg i{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:6px}
+@container (min-width:820px){.kpis{grid-template-columns:repeat(4,1fr)}}
+.sw{}
+:root,[data-theme="light"]{--lift:0 1px 1px rgba(14,26,43,.04),0 3px 6px rgba(14,26,43,.05),0 10px 22px rgba(14,26,43,.06);--glow:0 0 0 1px rgba(47,75,217,.16),0 2px 4px rgba(47,75,217,.10),0 8px 18px rgba(47,75,217,.14),0 20px 38px rgba(47,75,217,.10)}
+[data-theme="dark"]{--lift:0 1px 0 rgba(255,255,255,.04) inset,0 8px 20px rgba(0,0,0,.35);--glow:0 0 0 1px rgba(124,150,255,.40),0 0 16px rgba(124,150,255,.22),0 12px 30px rgba(0,0,0,.45)}
+.card,.kpi{box-shadow:var(--lift)}
+.card.pri,.card.fit,.card.map{border-top:1px solid var(--bd)}
+.kpi,.kpi.pri,.kpi.fit,.kpi.map,.kpi.prj{background:var(--sf);color:var(--ink);border:1px solid var(--bd)}
+.kpi small{color:var(--mu);font-weight:600}.kpi b{font-size:18px;font-weight:700;letter-spacing:-.01em}.kpi span{color:var(--mu);opacity:1;font-weight:500}
+.kpi.pri,.kpi.map{background:linear-gradient(180deg,var(--sf),var(--pri-s));border-color:transparent;box-shadow:var(--glow)}.kpi.pri b,.kpi.map b{color:var(--pri)}
+.next{background:radial-gradient(120% 90% at 100% 0%,rgba(124,150,255,.38),transparent 55%),var(--ink);box-shadow:var(--glow)}
+.next h3{font-size:19px;font-weight:700}.top h2{font-size:18px;font-weight:700}.card h3,.brand{font-weight:700}.row b{font-weight:600}.alt b{font-size:15px}
+.pill.ok{background:var(--ok-s);color:var(--ok)}.pipe .d:before{background:var(--ok)}.btn.f,.btn.m{background:var(--pri)}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute"><defs>
+<symbol id="home" viewBox="0 0 24 24"><path d="M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></symbol>
+<symbol id="cal" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></symbol>
+<symbol id="dumb" viewBox="0 0 24 24"><path d="M6 7v10M18 7v10M3 10v4M21 10v4M6 12h12"/></symbol>
+<symbol id="pin" viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></symbol>
+<symbol id="user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></symbol>
+<symbol id="plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+<symbol id="play" viewBox="0 0 24 24"><path d="M7 4l13 8-13 8z"/></symbol>
+<symbol id="search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></symbol>
+<symbol id="bell" viewBox="0 0 24 24"><path d="M6 16v-5a6 6 0 0 1 12 0v5l2 2H4zM10 21h4"/></symbol>
+<symbol id="up" viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M4 20h16"/></symbol>
+<symbol id="alert" viewBox="0 0 24 24"><path d="M12 3l10 18H2zM12 10v5M12 18v.01"/></symbol>
+<symbol id="lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></symbol>
+<symbol id="nav" viewBox="0 0 24 24"><path d="M3 11l18-8-8 18-2-8z"/></symbol>
+<symbol id="cloud" viewBox="0 0 24 24"><path d="M7 18a4 4 0 0 1-.5-8A6 6 0 0 1 18 9a4.5 4.5 0 0 1 0 9z"/></symbol>
+<symbol id="sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M5 19l1.5-1.5M17.5 6.5L19 5"/></symbol><symbol id="moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></symbol><symbol id="doc" viewBox="0 0 24 24"><path d="M6 3h8l5 5v13H6zM14 3v5h5"/></symbol>
+</defs></svg>
+<div class="bar">
+  <div><h1>All-in-One App · product design preview</h1><p>Scheduler · Fitness · Map — one offline-first app (name to be decided)</p></div>
+  <div class="act"><div class="seg" id="views"><button data-view="web">Web</button><button data-view="mobile">Mobile</button><button data-view="all">All parts</button></div><div class="seg" id="themes"><button data-th="light"><svg class="i" style="vertical-align:-5px;margin-right:4px"><use href="#sun"/></svg>Light</button><button data-th="dark"><svg class="i" style="vertical-align:-5px;margin-right:4px"><use href="#moon"/></svg>Dark</button></div></div>
+</div>
+<div class="stage" id="stage"></div>
+<script>
+var ic=function(n){return '<svg class="i"><use href="#'+n+'"/></svg>'};
+var NAV=[["home","Home","home"],["sched","Scheduler","cal"],["fit","Fitness","dumb"],["map","Map","pin"],["acct","Account","user"]];
+var TT={home:["Good morning, Alex","Thursday, November 12"],sched:["Scheduler","November 2026"],cor:["Upload COR","Create your class schedule"],fit:["Fitness","Week of November 9"],map:["Map","Philippines"],acct:["Account and sync","Alex Dela Cruz"]};
+var PAR={cor:"sched"},S={view:"web",screen:"home",theme:"light"};
+
+function line(v,l){var w=320,h=170,p=28,m=60,x=function(i){return p+i*(w-2*p)/(v.length-1)},y=function(n){return h-26-n/m*(h-50)},g="",k=v.length-1;
+[0,30,60].forEach(function(f){var yy=y(f);g+='<line x1="'+p+'" x2="'+(w-p)+'" y1="'+yy+'" y2="'+yy+'" stroke="var(--bd)"/><text x="0" y="'+(yy+3)+'" font-size="9" fill="var(--mu)">'+f+'</text>'});
+var pts=v.map(function(n,i){return x(i)+","+y(n)}).join(" ");
+return '<svg viewBox="0 0 '+w+' '+h+'" width="100%" role="img" aria-label="Line graph of weekly exercise minutes">'+g+'<polygon points="'+x(0)+','+y(0)+' '+pts+' '+x(k)+','+y(0)+'" fill="var(--pri)" opacity=".1"/><polyline points="'+pts+'" fill="none" stroke="var(--pri)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>'+
+v.map(function(n,i){return '<text x="'+x(i)+'" y="'+(h-6)+'" text-anchor="middle" font-size="10" fill="var(--mu)">'+l[i]+'</text>'+(i==k?'<circle cx="'+x(i)+'" cy="'+y(n)+'" r="5" fill="var(--sf)" stroke="var(--pri)" stroke-width="2.5"/><rect x="'+(x(i)-24)+'" y="'+(y(n)-30)+'" width="48" height="20" rx="6" fill="var(--ink)"/><text x="'+x(i)+'" y="'+(y(n)-16)+'" text-anchor="middle" font-size="10" font-weight="700" fill="var(--sf)">'+n+' min</text>':'<circle cx="'+x(i)+'" cy="'+y(n)+'" r="3" fill="var(--pri)"/>')}).join("")+'</svg>'}
+var WK=line([20,35,0,45,30,50,40],["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]);
+function row(t,c,a,b,tag){return '<div class="row"><span class="t">'+t+'</span><span class="bar2" style="background:var(--'+c+')"></span><div><b>'+a+'</b><small>'+b+'</small></div>'+(tag||"")+'</div>'}
+function ev(s,e,t,sub,c,col,n){var L=col*100/n;return '<div class="ev" style="top:'+(s-8)*56+'px;height:'+(e-s)*56+'px;left:'+L+'%;width:calc('+100/n+'% - 4px);background:var(--'+c+'-s);border-color:var(--'+c+')">'+t+'<small>'+sub+'</small></div>'}
+
+function kpi(c,l,n,s){return '<div class="kpi '+c+'"><small>'+l+'</small><b>'+n+'</b><span>'+s+'</span></div>'}
+var SC={
+home:function(){return '<div class="sec">Overview</div><div class="kpis">'+kpi('pri','Classes today','2','Next in 25 min')+kpi('fit','Workout','45 min','12:30 PM · Gym')+kpi('map','Leave for Makati','4:45 PM','42 min trip')+kpi('prj','Reminders on','2','Alarm and notify')+'</div><div class="sec">Today and progress</div><div class="cols"><div class="stack"><div class="next"><small>Next up · in 25 minutes</small><h3>Data Structures</h3><small>8:00–9:30 AM · Room 304 · Prof. Reyes</small><div style="display:flex;gap:8px"><span class="btn" style="flex:1">'+ic("cal")+'Open</span><span class="btn" style="flex:1;background:rgba(255,255,255,.14);color:inherit">Snooze</span></div></div>'+
+'<div class="qa"><button><span class="ico" style="background:var(--pri-s);color:var(--pri)">'+ic("plus")+'</span>New schedule</button><button><span class="ico" style="background:var(--fit-s);color:var(--fit)">'+ic("play")+'</span>Start workout</button><button><span class="ico" style="background:var(--map-s);color:var(--map)">'+ic("pin")+'</span>Open map</button></div>'+
+'<div class="card pri"><h3>Today <span>4 items · 2 reminders on</span></h3>'+row("8:00","pri","Data Structures","Room 304")+row("12:30","fit","Upper body workout","Gym · 45 min",'<span class="pill f">Exercise</span>')+row("3:00","prj","Capstone meeting","Library",'<span class="pill p">Project</span>')+row("5:30","map","Travel to Makati",'Leave by <span class="hl">4:45 PM</span>','<span class="pill m">Travel</span>')+'</div></div>'+
+'<div class="stack"><div class="card fit"><h3>Exercise this week <span>minutes</span></h3>'+WK+'</div><div class="card"><h3>Sync <span class="pill ok">Synced</span></h3><div class="file">'+'<span class="ico">'+ic("cloud")+'</span><div><b>All changes saved</b><small style="color:var(--mu)">Last synced 2 min ago</small></div></div></div></div></div>'},
+
+sched:function(){var d="",i;for(i=0;i<7;i++)d+='<span class="'+(i==4?'on':'')+'">'+"SMTWTFS"[i]+'<b>'+(8+i)+'</b></span>';
+var h="";for(i=8;i<=18;i++)h+='<i style="top:'+(i-8)*56+'px"><em>'+(i>12?i-12:i)+(i<12?" AM":" PM")+'</em></i>';
+return '<div class="sec">View and filters</div><div class="lg"><span><i style="background:var(--pri)"></i>School 14</span><span><i style="background:var(--fit)"></i>Exercise 4</span><span><i style="background:var(--prj)"></i>Projects 3</span><span><i style="background:var(--map)"></i>Travel 2</span></div><div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><div class="seg"><button>Day</button><button class="on">Week</button><button>Month</button><button>Year</button></div><div class="chips"><span class="chip on">All</span><span class="chip">School</span><span class="chip">Exercise</span><span class="chip">Projects</span><span class="chip">Travel</span></div></div>'+
+'<div class="cols"><div class="stack"><div class="wk">'+d+'</div><div class="card pri"><div class="tl">'+h+'<div class="now" style="top:'+3.2*56+'px"></div>'+
+ev(8,9.5,"Data Structures","Room 304","pri",0,1)+ev(12.5,13.25,"Upper body workout","Gym","fit",0,1)+ev(15,16,"Capstone meeting","Library","prj",0,2)+ev(15.5,16.5,"Study group","Cafe","pri",1,2)+ev(17,18,"Travel to Makati","Leave 4:45 PM","fit",0,1)+'</div></div></div>'+
+'<div class="stack"><div class="note">'+ic("alert")+'<span>Capstone meeting and Study group overlap at 3:30 PM. You can still save both.</span></div><button class="btn s w" data-go="cor">'+ic("up")+'Upload COR to build class schedule</button>'+
+'<div class="card"><h3>Reminder <span>Capstone meeting</span></h3><div class="chips"><span class="chip on">Notify + alarm</span><span class="chip">15 min before</span><span class="chip">Repeat: none</span></div></div></div></div>'},
+
+cor:function(){var f=function(a,b,c,d,lo){return '<div class="fld'+(lo?' lo':'')+'"><b>'+a+'</b><b>'+b+'</b><small>'+c+'</small><small>'+(lo?'<span style="color:var(--warn)">Check time</span>':d)+'</small></div>'};
+return '<div class="steps"><div>Upload</div><div class="on">Review</div><div>Create</div></div><div class="cols"><div class="stack"><div class="card file"><span class="ico">'+ic("doc")+'</span><div><b>COR_2026_1st_Sem.pdf</b><small style="color:var(--mu)">1.2 MB · read with OCR</small></div></div><div class="note b">'+ic("lock")+'<span>Your COR may contain personal details. It is private to your account and you can delete it anytime.</span></div></div>'+
+'<div class="card pri"><h3>Review extracted classes <span>1st Sem, AY 2026–2027</span></h3><div class="chips"><span class="pill ok">2 ready</span><span class="pill w">1 needs review</span></div>'+f("CS 201 · Data Structures","Mon, Thu","Room 304 · Prof. Reyes","8:00–9:30")+f("MATH 210 · Discrete Math","Tue, Fri","Room 112 · Prof. Santos","10:00–11:30")+f("CS 230 · Databases","Wed","Lab 2 · Prof. Cruz","",1)+
+'<div style="display:flex;gap:8px;margin-top:14px"><button class="btn s" style="flex:1">Reprocess</button><button class="btn" style="flex:2">Create 5 schedules</button></div></div></div>'},
+
+fit:function(){return '<div class="sec">This week</div><div class="kpis">'+kpi('fit','Workouts','4','Goal: 5')+kpi('fit','Active time','3h 40m','+22% vs last week')+kpi('map','Day streak','5','Personal best')+kpi('fit','Best day','50 min','Saturday')+'</div><div class="sec">Plan and trends</div><div class="cols"><div class="stack"><div class="card fit"><h3>Today’s workout <span class="pill f">Strength</span></h3><b style="font-size:16px;letter-spacing:-.01em">Upper body</b><p style="color:var(--mu);font-size:12px;margin-bottom:12px">5 exercises · about 45 min · 12:30 PM</p>'+
+row("3×12","fit","Push-ups","Rest 60 s")+row("3×10","fit","Dumbbell rows","Rest 60 s")+row("3×45s","fit","Plank","Rest 45 s")+'<button class="btn f w" style="margin-top:14px">'+ic("play")+'Start workout</button></div>'+
+'<div class="chips"><span class="chip on">Strength</span><span class="chip">Cardio</span><span class="chip">Core</span><span class="chip">Flexibility</span><span class="chip">Mobility</span><span class="chip">Recovery</span></div></div>'+
+'<div class="stack"><div class="card fit"><h3>Weekly exercise time <span>minutes</span></h3>'+WK+'</div><small style="color:var(--mu)">General exercise information only. It is not a personal medical assessment.</small></div></div>'},
+
+map:function(){return '<div class="cols"><div class="map"><div class="s">'+ic("search")+'Search places in the Philippines</div><svg viewBox="0 0 420 340" width="100%" style="display:block" role="img" aria-label="Sample route map"><rect width="420" height="340" fill="var(--sf2)"/><path d="M0 250 C90 230 140 300 240 280 S380 300 420 270 V340 H0z" fill="var(--pri-s)"/><rect x="250" y="70" width="80" height="60" rx="10" fill="var(--fit-s)"/><g stroke="var(--sf)" stroke-width="12" fill="none"><path d="M0 90 L420 140M0 200 L420 170M130 0 L170 340M300 0 L270 340"/></g>'+
+'<path d="M60 230 C110 190 150 130 215 120 S320 100 355 60" stroke="var(--map)" stroke-width="6" fill="none" stroke-linecap="round"/><circle cx="60" cy="230" r="9" fill="var(--sf)" stroke="var(--ink)" stroke-width="4"/><circle cx="355" cy="60" r="11" fill="var(--map)" stroke="var(--sf)" stroke-width="4"/></svg></div>'+
+'<div class="stack"><div class="card map"><h3>Quezon City → Makati <span class="pill w">Needs internet</span></h3><div class="alt on"><div><b>42 min</b><br><small style="color:var(--mu)">Fastest · 14.8 km</small></div><span class="pill m">Leave 4:45 PM</span></div><div class="alt"><div><b>51 min</b><br><small style="color:var(--mu)">Fewer tolls · 16.2 km</small></div></div>'+
+'<div class="chips" style="margin:6px 0 12px"><span class="chip on">Driving</span><span class="chip">Walking</span><span class="chip">Cycling</span></div><div style="display:flex;gap:8px"><button class="btn s" style="flex:1">Add to schedule</button><button class="btn m" style="flex:1">'+ic("nav")+'Google Maps</button></div></div>'+
+'<div class="card"><h3>Saved places <span>available offline</span></h3>'+row("","pri","Home","Quezon City")+row("","pri","University","Diliman")+row("","fit","City Gym","Katipunan")+'</div></div></div>'},
+
+acct:function(){var tg=function(a,b,on){return '<div class="row"><div><b>'+a+'</b><small>'+b+'</small></div><span class="tg'+(on?' on':'')+'"></span></div>'};
+return '<div class="sec">Profile and sync</div><div class="cols"><div class="stack"><div class="card file"><span class="av" style="width:52px;height:52px">A</span><div><b>Alex Dela Cruz</b><small style="color:var(--mu)">alex@gmail.com · BSCS, 3rd year</small></div></div>'+
+'<div class="card fit"><h3>Sync status <span class="pill ok">Synced</span></h3><div class="pipe"><span class="d">Saved locally</span><span class="c">Waiting · 3</span><span>Syncing</span><span>Synced</span></div><small style="color:var(--mu);display:block;margin-top:12px">Changes save on this device first, then sync when you are online.</small></div></div>'+
+'<div class="stack"><div class="sec">Preferences</div><div class="card pri"><h3>Settings</h3>'+tg("Reminders","Turning off keeps your schedules",1)+tg("Dark theme","Light is the default",0)+tg("Route history","Saved only when on",0)+tg("Sample data","Remove without touching your records",1)+'</div>'+
+'<div class="sec">Security</div><div class="card"><button class="btn w" disabled>Sign out</button><small style="color:var(--mu);display:block;margin-top:8px">Sign out and account switching need internet so your local data stays protected.</small></div></div></div>'}};
+
+function app(sc){var a=PAR[sc]||sc,nav=NAV.map(function(n){return '<button data-go="'+n[0]+'" class="'+(n[0]==a?'on':'')+'">'+ic(n[2])+n[1]+'</button>'}).join("");
+return '<div class="app"><nav class="side"><div class="brand"><b>A</b><div>All-in-One<small>Name to be decided</small></div></div>'+nav+'<div class="sync"><b>Synced</b>Last sync 2 min ago</div></nav><div class="sb"><span>9:41</span><span>5G ▮▮▮</span></div>'+
+'<header class="top"><div><h2>'+TT[sc][0]+'</h2><small>'+TT[sc][1]+'</small></div><div class="act"><span class="srch">'+ic("search")+'Search schedules, exercises, places</span><span class="ico">'+ic("bell")+'</span><span class="av">A</span></div></header><main class="main">'+SC[sc]()+'</main><nav class="bnav">'+nav+'</nav></div>'}
+
+function render(){var st=document.getElementById("stage"),h="";st.className="stage "+S.view;
+document.querySelectorAll("#views button").forEach(function(b){b.classList.toggle("on",b.dataset.view==S.view)});document.documentElement.dataset.theme=S.theme;document.querySelectorAll("#themes button").forEach(function(b){b.classList.toggle("on",b.dataset.th==S.theme)});
+if(S.view!="all")h='<div class="frame">'+app(S.screen)+'</div>';
+else h='<div class="tok"><span><i style="background:var(--ink)"></i>Ink</span><span><i style="background:var(--pri)"></i>Primary</span><span><i style="background:var(--pri-s)"></i>Primary tint</span><span><i style="background:var(--fit)"></i>Neutral</span><span><i style="background:var(--ok)"></i>Success</span><span><i style="background:var(--warn)"></i>Warning</span><span style="font-size:13px;font-weight:700">Manrope · 8pt grid · 3 elevation levels</span></div>'+
+'<div><div class="cap">Web view · Dashboard</div><div class="frame d">'+app("home")+'</div></div><div class="cap" style="margin-bottom:-12px">Light and dark mode · side by side</div><div class="g6">'+[["home","light"],["home","dark"],["fit","light"],["fit","dark"]].map(function(q){return '<div class="th" data-theme="'+q[1]+'"><div class="cap">'+(q[0]=="home"?"Dashboard":TT[q[0]][0])+' · '+q[1]+'</div><div class="frame">'+app(q[0])+'</div></div>'}).join("")+'</div><div class="cap" style="margin-bottom:-12px">Mobile view · all parts</div><div class="g6">'+Object.keys(SC).map(function(k){return '<div><div class="cap">'+(k=="home"?"Dashboard":TT[k][0])+'<button data-open="'+k+'">Open live</button></div><div class="frame">'+app(k)+'</div></div>'}).join("")+'</div>';
+st.innerHTML=h}
+
+document.addEventListener("click",function(e){var t=e.target.closest("[data-view],[data-go],[data-open],[data-th]");if(!t)return;
+if(t.dataset.th){S.theme=t.dataset.th;render();return}
+if(t.dataset.view)S.view=t.dataset.view;else if(t.dataset.open){S.view="web";S.screen=t.dataset.open}else if(S.view!="all")S.screen=t.dataset.go;
+render()});
+render();
+</script>
+</body>
+</html>

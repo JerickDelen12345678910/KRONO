@@ -1,0 +1,16 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isOwner(uid) { return request.auth != null && request.auth.uid == uid; }
+
+    // Each user can only touch their own profile and everything beneath it.
+    match /users/{uid} {
+      allow read, delete: if isOwner(uid);
+      allow create: if isOwner(uid) && request.resource.data.email == request.auth.token.email;
+      allow update: if isOwner(uid) && request.resource.data.email == resource.data.email;
+      match /{document=**} { allow read, write: if isOwner(uid); }
+    }
+
+    match /{document=**} { allow read, write: if false; }
+  }
+}

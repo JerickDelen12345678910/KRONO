@@ -1,0 +1,68 @@
+@use "design-tokens" as *;
+@use "variables";
+@use "components";
+
+// --- Global base styles ---
+
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+  
+  html {
+    scroll-padding-top: env(safe-area-inset-top, 0px);
+    font-variant-numeric: tabular-nums;
+  }
+  
+  body {
+    margin: 0;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    background: var(--bg);
+    color: var(--ink);
+    font: 500 14px/1.5 var(--font-family-base, #{$font-family-base});
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  
+  // Focus visible for accessibility
+  :focus-visible {
+    outline: 2px solid var(--pri);
+    outline-offset: 2px;
+  }
+  
+  // Scrollbar styling
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--bd);
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--mu);
+  }
+  
+  // Selection
+  ::selection {
+    background: var(--pri-s);
+    color: var(--pri);
+  }
+  [data-theme="dark"] ::selection {
+    background: var(--pri-s);
+    color: var(--pri);
+  }
+  
+  // Reduced motion
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+

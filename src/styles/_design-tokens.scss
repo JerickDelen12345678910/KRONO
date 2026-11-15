@@ -1,0 +1,115 @@
+// ============================================
+// DESIGN TOKENS — All-in-One App
+// Source: DESIGN_REFERENCE.md
+// ============================================
+
+// --- Font ---
+
+$font-family-base: 'Manrope', system-ui, -apple-system, sans-serif;
+$font-weight-normal: 500;
+$font-weight-medium: 600;
+$font-weight-semibold: 700;
+$font-weight-bold: 800;
+
+// --- Light Theme (default) ---
+:root, [data-theme="light"] {
+  // Surfaces
+  --on: #fff;
+  --bg: #F3F5F9;
+  --sf: #fff;
+  --sf2: #EDF0F6;
+  
+  // Text
+  --ink: #0E1A2B;
+  --mu: #5B687B;
+  
+  // Border
+  --bd: #E1E6EE;
+  
+  // Module Colors
+  --pri: #2F4BD9;      // Scheduler (primary)
+  --pri-s: #E9EDFC;    // Primary tint
+  --fit: #4A5A72;      // Fitness (teal)
+  --fit-s: #EDF0F5;    // Fitness tint
+  --map: var(--pri);   // Map (uses primary)
+  --map-s: var(--pri-s);
+  --prj: #4A5A72;      // Projects (neutral)
+  --prj-s: #EDF0F5;
+  
+  // Semantic
+  --ok: #15803D;       // Success
+  --ok-s: #E3F5E9;
+  --warn: #B45309;     // Warning
+  --warn-s: #FEF3C7;
+  
+  // Elevation
+  --sh: 0 1px 2px rgba(14,26,43,.06), 0 4px 14px rgba(14,26,43,.05);
+  --lift: 0 1px 1px rgba(14,26,43,.04), 0 3px 6px rgba(14,26,43,.05), 0 10px 22px rgba(14,26,43,.06);
+  --glow: 0 0 0 1px rgba(47,75,217,.16), 0 2px 4px rgba(47,75,217,.10), 0 8px 18px rgba(47,75,217,.14), 0 20px 38px rgba(47,75,217,.10);
+  
+  color-scheme: light;
+}
+
+// --- Dark Theme ---
+[data-theme="dark"] {
+  --on: #0B111A;
+  --bg: #0B111A;
+  --sf: #141C28;
+  --sf2: #1B2535;
+  --ink: #EAF0F8;
+  --mu: #93A0B4;
+  --bd: #243044;
+  --pri: #7C96FF;
+  --pri-s: #1A2547;
+  --fit: #A9B6CA;
+  --fit-s: #222E42;
+  --map: var(--pri);
+  --map-s: var(--pri-s);
+  --prj: #A9B6CA;
+  --prj-s: #222E42;
+  --ok: #4ADE80;
+  --ok-s: #12301F;
+  --warn: #FBBF24;
+  --warn-s: #3A2E10;
+  --sh: none;
+  --lift: 0 1px 0 rgba(255,255,255,.04) inset, 0 8px 20px rgba(0,0,0,.35);
+  --glow: 0 0 0 1px rgba(124,150,255,.40), 0 0 16px rgba(124,150,255,.22), 0 12px 30px rgba(0,0,0,.45);
+  color-scheme: dark;
+}
+
+// --- Spacing Scale (8px base) ---
+$space-1: 4px;   // 0.5
+$space-2: 8px;   // 1
+$space-3: 12px;  // 1.5
+$space-4: 16px;  // 2
+$space-5: 20px;  // 2.5
+$space-6: 24px;  // 3
+$space-8: 32px;  // 4
+$space-10: 40px; // 5
+$space-12: 48px; // 6
+
+// --- Border Radius ---
+$radius-sm: 8px;    // buttons, chips
+$radius-md: 10px;   // toggles, cards
+$radius-lg: 12px;   // cards, inputs
+$radius-xl: 16px;   // large cards
+$radius-2xl: 22px;  // frame
+$radius-full: 999px; // pills
+
+// --- Breakpoints ---
+$bp-mobile: 576px;
+$bp-tablet: 768px;
+$bp-desktop: 820px;  // Container query breakpoint (sidebar)
+$bp-wide: 992px;
+$bp-xl: 1200px;
+
+// --- Transitions ---
+$transition-fast: 150ms ease;
+$transition-normal: 200ms ease;
+
+// --- Z-Index ---
+$z-dropdown: 100;
+$z-sticky: 200;
+$z-modal: 300;
+$z-toast: 400;
+$z-tooltip: 500;
