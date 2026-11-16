@@ -31,7 +31,7 @@ src/components/ui/     Button, Card, KPICard, Pill, ToggleSwitch, SegmentedContr
 src/pages/    Dashboard, Scheduler, Fitness, MapPage, Account, Login
 src/routes/   AppRoutes, ProtectedRoute
 src/models/   Shared data shapes + validators (pure JS, no UI/DB). `createX()` builds a record, `validateX()` returns { valid, errors }
-src/repositories/ Repository (validate, version, soft delete, sync status) + MemoryAdapter + createRepositories({ userId })  — storage swappable in Phase 6
+src/repositories/ Repository (validate, version, soft delete, sync status) + MemoryAdapter (demo mode) + IndexedDBAdapter (real users, one IndexedDB database per uid via `idb`, Phase 6 PACE 1-2) + createRepositories({ userId, store|createAdapter }) — SQLite/Android is Phase 13
 src/services/  ScheduleService, WorkoutService, PlaceService, ActivityService (dashboard timeline), SampleDataService, ReminderService (Android/web reminders) + createServices(repos)
 src/reminders/ ReminderAdapter.js (adapter contract + PERMISSION) · MemoryReminderAdapter.js · BrowserNotificationAdapter.js (web, app-open only) · index.js (createDefaultReminderAdapter) — native Android adapter is Phase 13
 src/contexts/ ServicesProvider.jsx + src/hooks/useServices.js  — screens get services with `const { schedule, workout, place, activity, reminders } = useServices()`
