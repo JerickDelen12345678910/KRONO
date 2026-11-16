@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import { KPICard } from '../components/ui/KPICard';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -19,6 +20,7 @@ const todayItems = [
 ];
 
 export function Dashboard() {
+  const navigate = useNavigate();
   return (
     <div>
       {/* KPI Row */}
@@ -51,7 +53,7 @@ export function Dashboard() {
 
             {/* Quick Actions */}
             <div className="qa-grid">
-              <button className="qa-btn">
+              <button className="qa-btn" onClick={() => navigate('/scheduler/new')}>
                 <span className="icon-wrapper" style={{ background: 'var(--pri-s)', color: 'var(--pri)' }}>
                   <Icon name="plus" className="icon-xl" />
                 </span>

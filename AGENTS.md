@@ -34,7 +34,7 @@ src/models/   Shared data shapes + validators (pure JS, no UI/DB). `createX()` b
 src/repositories/ Repository (validate, version, soft delete, sync status) + MemoryAdapter + createRepositories({ userId })  — storage swappable in Phase 6
 src/services/  ScheduleService, WorkoutService, PlaceService, ActivityService (dashboard timeline), SampleDataService + createServices(repos)
 src/contexts/ServicesProvider.jsx + src/hooks/useServices.js  — screens get services with `const { schedule, workout, place, activity } = useServices()`
-src/lib/timeline.js (pure week/timeline/overlap logic) · src/services/demoSeed.js (isSample demo data) · src/lib/errors.js (AppError + codes) · src/lib/firebase.js · src/hooks/useOnlineStatus.js · scripts/check-models.mjs · scripts/check-repositories.mjs · scripts/check-activity.mjs · scripts/check-timeline.mjs (run: node scripts/<file>)
+src/lib/timeline.js (pure week/timeline/overlap logic) · src/lib/recurrence.js (repeat rule -> dates) · src/lib/scheduleForm.js (form drafts + conversion) · pages/ScheduleForm.jsx · src/services/demoSeed.js (isSample demo data) · src/lib/errors.js (AppError + codes) · src/lib/firebase.js · src/hooks/useOnlineStatus.js · scripts/check-*.mjs (one per area) · scripts/check-all.mjs — run ALL with: npm run check
 firestore.rules · storage.rules · .env (never commit) · .env.example
 ```
 
@@ -58,6 +58,14 @@ Screen/component -> **service** (`src/services`) -> **repository** (`src/reposit
 - Category colors use `data-color="primary|slate|success|warning"` (sets `--c`/`--cs`); never hard-code colors in components.
 - The timeline shows only persisted occurrences (see Phase 4 PACE 2). Overlaps never block saving.
 
+## 5e. Schedules and occurrences
+- Create/edit schedules ONLY through `useServices().schedule.create/update`: they run `syncOccurrences`, which generates dated occurrences from the repeat rule. Writing to the repository directly leaves the timeline empty.
+- Edits never rewrite history: done/skipped/past occurrences are kept; only upcoming scheduled ones follow the new rule/time. Tests inject the date: `createServices(repos, { today: () => 'YYYY-MM-DD' })`.
+
+## 5f. Forms
+- Form logic is pure and tested in `src/lib/*Form.js`; the page only renders. Use `FormField` for label + control + error, `form-field` / `form-grid` / `row-2` styles, `type="date"` / `type="time"` inputs (they already produce `YYYY-MM-DD` / `HH:mm`).
+- Show field errors only after the first Save attempt, then live. Save through a service, and show unexpected errors with `handleError`.
+
 ## 6. Known gotchas (already solved — don't reintroduce)
 - `ToggleSwitch` is a `<button>`: use `onClick` + `aria-checked`, not `onChange`/`:checked`.
 - A container can't style itself with `@container`; that's why we use `@media`.
@@ -66,5 +74,5 @@ Screen/component -> **service** (`src/services`) -> **repository** (`src/reposit
 - PowerShell (Windows): run one command per line.
 
 ## 7. Definition of done (every task)
-- [ ] `npm run build` passes · [ ] `node scripts/check-models.mjs` and `node scripts/check-repositories.mjs` and `node scripts/check-activity.mjs` and `node scripts/check-timeline.mjs` pass · [ ] checked at **390px and 1280px**, **Light and Dark** · [ ] no horizontal scroll
+- [ ] `npm run build` passes · [ ] `npm run check` passes (runs every check script) · [ ] checked at **390px and 1280px**, **Light and Dark** · [ ] no horizontal scroll
 - [ ] matches design preview · [ ] `git commit -m "phase X: …"` · [ ] `docs/PROGRESS.md` updated (status, NEXT TASK, files changed)

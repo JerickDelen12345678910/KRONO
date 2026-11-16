@@ -1,15 +1,69 @@
 import { OCCURRENCE_STATUS } from '../models/constants.js';
 import { nowIso } from '../models/common.js';
+import { toLocalDate } from '../models/common.js';
 import { createOccurrence } from '../models/schedule.js';
+import { occurrenceDates, scheduleWindow } from '../lib/recurrence.js';
 import { AppError, ERROR_CODE } from '../lib/errors.js';
 
 const byDateTime = (a, b) => `${a.date}${a.startTime}`.localeCompare(`${b.date}${b.startTime}`);
 
 export class ScheduleService {
-  constructor({ schedules, occurrences }) { this.schedules = schedules; this.occurrences = occurrences; }
+  /** `today` is injectable so tests (and a future "pretend date") are deterministic. */
+  constructor({ schedules, occurrences }, { today = () => toLocalDate() } = {}) {
+    this.schedules = schedules; this.occurrences = occurrences; this.today = today;
+  }
 
-  create(input) { return this.schedules.create(input); }
-  update(id, changes, opts) { return this.schedules.update(id, changes, opts); }
+  /** Creating a schedule also generates its occurrences. */
+  async create(input) {
+    const schedule = await this.schedules.create(input);
+    await this.syncOccurrences(schedule.id);
+    return schedule;
+  }
+
+  /** Editing a schedule re-syncs its occurrences (past, done and skipped history is kept). */
+  async update(id, changes, opts) {
+    const schedule = await this.schedules.update(id, changes, opts);
+    await this.syncOccurrences(schedule.id);
+    return schedule;
+  }
+
+  /**
+   * Make the stored occurrences match the schedule's rule. Idempotent, safe to call again.
+   *  - missing dates are created; dates that were removed earlier are restored
+   *  - scheduled occurrences that no longer match are removed, but only upcoming ones
+   *    (one-time schedules move wholly); done / skipped / past ones are never touched
+   *  - upcoming matching occurrences get the new start/end time
+   * Returns { created, restored, updated, removed, kept }.
+   */
+  async syncOccurrences(scheduleId, { today = this.today() } = {}) {
+    const s = await this.schedules.require(scheduleId);
+    const oneTime = !s.repeat || s.repeat.type === 'none';
+    const target = new Set(scheduleWindow(s).from ? occurrenceDates(s) : []);
+    const all = await this.occurrences.list({ where: { scheduleId }, includeDeleted: true });
+    const byDate = new Map(all.map((o) => [o.date, o]));
+    const editable = (o) => o.status === OCCURRENCE_STATUS.SCHEDULED && (oneTime || o.date >= today);
+    const sum = { created: 0, restored: 0, updated: 0, removed: 0, kept: 0 };
+
+    for (const date of target) {
+      const ex = byDate.get(date);
+      if (!ex) {
+        await this.occurrences.create(createOccurrence(s, date, { isSample: s.isSample }));
+        sum.created += 1;
+      } else if (ex.deleted) {
+        await this.occurrences.restore(ex.id);
+        await this.occurrences.update(ex.id, { startTime: s.startTime, endTime: s.endTime, status: OCCURRENCE_STATUS.SCHEDULED, completedAt: null });
+        sum.restored += 1;
+      } else if (editable(ex) && (ex.startTime !== s.startTime || ex.endTime !== s.endTime)) {
+        await this.occurrences.update(ex.id, { startTime: s.startTime, endTime: s.endTime });
+        sum.updated += 1;
+      } else sum.kept += 1;
+    }
+    for (const o of all) {
+      if (o.deleted || target.has(o.date)) continue;
+      if (editable(o)) { await this.occurrences.remove(o.id); sum.removed += 1; } else sum.kept += 1;
+    }
+    return sum;
+  }
   get(id) { return this.schedules.get(id); }
 
   /** list({ category, search }) */

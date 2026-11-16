@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Route, Routes, useNavigate } from 'react-router-dom';
+import { Route, Routes, useNavigate, useSearchParams } from 'react-router-dom';
 import { useServices } from '../hooks/useServices';
 import { CATEGORIES, CATEGORY_COLOR } from '../models/constants.js';
-import { addDays, toLocalDate } from '../models/common.js';
+import { addDays, isDate, toLocalDate } from '../models/common.js';
 import { dateOf, findOverlaps, monthLabel, to12h, weekDates } from '../lib/timeline.js';
 import { handleError } from '../lib/errors';
 import { Button } from '../components/ui/Button';
@@ -14,6 +14,7 @@ import { Pill } from '../components/ui/Pill';
 import { SegmentedControl } from '../components/ui/SegmentedControl';
 import { Timeline } from '../components/ui/Timeline';
 import { WeekStrip } from '../components/ui/WeekStrip';
+import { ScheduleForm } from './ScheduleForm';
 
 const VIEWS = [{ value: 'day', label: 'Day' }, { value: 'week', label: 'Week' }, { value: 'month', label: 'Month' }, { value: 'year', label: 'Year' }];
 const FILTERS = [{ value: 'All', label: 'All' }, ...CATEGORIES.map((c) => ({ value: c, label: c }))];
@@ -24,8 +25,9 @@ const longDate = (d) => new Date(`${d}T00:00`).toLocaleDateString('en-US', { wee
 function WeekView() {
   const navigate = useNavigate();
   const { schedule, activity } = useServices();
+  const [params] = useSearchParams();
   const [now, setNow] = useState(() => new Date());
-  const [selected, setSelected] = useState(() => toLocalDate());
+  const [selected, setSelected] = useState(() => (isDate(params.get('date')) ? params.get('date') : toLocalDate()));
   const [category, setCategory] = useState('All');
   const [soon, setSoon] = useState('');
   const [pickedId, setPickedId] = useState(null);
@@ -66,6 +68,9 @@ function WeekView() {
 
   return (
     <div className="stack">
+      <div className="page-actions">
+        <Button leftIcon="plus" onClick={() => navigate(`/scheduler/new?date=${selected}`)}>New schedule</Button>
+      </div>
       <h3 className="section-divider">View and filters</h3>
       {counts.length > 0 && (
         <div className="legend" aria-label="Categories">
@@ -111,6 +116,7 @@ function WeekView() {
                 {def.reminder.enabled && <Pill variant="fit">{def.reminder.offsetMinutes === 0 ? 'At start time' : `${def.reminder.offsetMinutes} min before`}</Pill>}
                 <Pill variant="fit">{`Repeat: ${repeatLabel(def.repeat)}`}</Pill>
               </div>
+              <Button variant="secondary" fullWidth leftIcon="edit" className="mt-3" onClick={() => navigate(`/scheduler/edit/${def.id}`)}>Edit schedule</Button>
             </Card>
           )}
         </div>
@@ -136,6 +142,8 @@ export function Scheduler() {
     <Routes>
       <Route index element={<WeekView />} />
       <Route path="cor" element={<CorPlaceholder />} />
+      <Route path="new" element={<ScheduleForm />} />
+      <Route path="edit/:id" element={<ScheduleForm />} />
     </Routes>
   );
 }

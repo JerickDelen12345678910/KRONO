@@ -84,6 +84,16 @@ export class Repository {
     return next;
   }
 
+  /** Undo a soft delete (used when a removed occurrence comes back after a schedule edit). */
+  async restore(id) {
+    const current = await this.adapter.get(id);
+    if (!current) throw new AppError(ERROR_CODE.NOT_FOUND, 'Record not found.', { id });
+    if (!current.deleted) return current;
+    const next = touch({ ...current, deleted: false, deletedAt: null });
+    await this.adapter.put(next);
+    return next;
+  }
+
   /** Sync bookkeeping only: changes syncStatus without bumping the version. */
   async setSyncStatus(id, status) {
     if (!Object.values(SYNC_STATUS).includes(status)) throw new AppError(ERROR_CODE.INVALID, 'Unknown sync status.', { status });

@@ -28,7 +28,7 @@ ok(toLocalDateTime(new Date(2026, 10, 12, 8, 5)) === '2026-11-12T08:05', 'toLoca
 
 // ---- mappers + service ----
 const repos = createRepositories({ userId: 'alex' });
-const svc = createServices(repos);
+const svc = createServices(repos, { today: () => '2026-11-12' });
 const ds = await svc.schedule.create({ title: 'Data Structures', category: 'School', location: 'Room 304', startTime: '08:00', endTime: '09:30', date: '2026-11-12' });
 const gym = await svc.schedule.create({ title: 'Gym', category: 'Exercise', startTime: '12:30', endTime: '13:15', date: '2026-11-12' });
 const cap = await svc.schedule.create({ title: 'Capstone', category: 'Projects', startTime: '15:00', endTime: '16:00', date: '2026-11-12' });
