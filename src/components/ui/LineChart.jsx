@@ -2,11 +2,9 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 
 export function LineChartWidget({ 
   data, 
-  dataKey, 
   labels, 
   color = 'var(--pri)',
   height = 170,
-  showLatest = true 
 }) {
   // data: [{ value: 20, label: 'Mon' }, ...]
   // Convert to recharts format
@@ -16,7 +14,6 @@ export function LineChartWidget({
     index: i,
   }));
 
-  const lastPoint = chartData[chartData.length - 1];
 
   return (
     <div style={{ width: '100%', height }}>

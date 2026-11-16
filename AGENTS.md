@@ -34,7 +34,7 @@ src/models/   Shared data shapes + validators (pure JS, no UI/DB). `createX()` b
 src/repositories/ Repository (validate, version, soft delete, sync status) + MemoryAdapter + createRepositories({ userId })  — storage swappable in Phase 6
 src/services/  ScheduleService, WorkoutService, PlaceService, ActivityService (dashboard timeline), SampleDataService + createServices(repos)
 src/contexts/ServicesProvider.jsx + src/hooks/useServices.js  — screens get services with `const { schedule, workout, place, activity } = useServices()`
-src/lib/timeline.js (pure week/timeline/overlap logic) · src/lib/recurrence.js (repeat rule -> dates) · src/lib/scheduleForm.js (form drafts + conversion) · pages/ScheduleForm.jsx · src/services/demoSeed.js (isSample demo data) · src/lib/errors.js (AppError + codes) · src/lib/firebase.js · src/hooks/useOnlineStatus.js · scripts/check-*.mjs (one per area) · scripts/check-all.mjs — run ALL with: npm run check
+src/lib/timeline.js (pure week/timeline/overlap logic) · src/lib/recurrence.js (repeat rule -> dates) · src/lib/calendar.js (month/year grids, view ranges) · src/lib/scheduleForm.js (form drafts + conversion) · pages/ScheduleForm.jsx · src/services/demoSeed.js (isSample demo data) · src/lib/errors.js (AppError + codes) · src/lib/firebase.js · src/hooks/useOnlineStatus.js · scripts/check-*.mjs (one per area) · scripts/check-all.mjs — run ALL with: npm run check
 firestore.rules · storage.rules · .env (never commit) · .env.example
 ```
 
@@ -61,6 +61,9 @@ Screen/component -> **service** (`src/services`) -> **repository** (`src/reposit
 ## 5e. Schedules and occurrences
 - Create/edit schedules ONLY through `useServices().schedule.create/update`: they run `syncOccurrences`, which generates dated occurrences from the repeat rule. Writing to the repository directly leaves the timeline empty.
 - Edits never rewrite history: done/skipped/past occurrences are kept; only upcoming scheduled ones follow the new rule/time. Tests inject the date: `createServices(repos, { today: () => 'YYYY-MM-DD' })`.
+
+## 5g. Calendar views
+- The Scheduler keeps ONE `view` state (day/week/month/year) and loads only the visible range through `activity.list({ from, to, category })`; navigation uses `shiftView`/`viewRange` from `lib/calendar.js`. Month/Year show dots only; details live in Day/Week.
 
 ## 5f. Forms
 - Form logic is pure and tested in `src/lib/*Form.js`; the page only renders. Use `FormField` for label + control + error, `form-field` / `form-grid` / `row-2` styles, `type="date"` / `type="time"` inputs (they already produce `YYYY-MM-DD` / `HH:mm`).

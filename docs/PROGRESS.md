@@ -6,7 +6,7 @@
 - Build status: passing
 
 ## NEXT TASK  ← start here
-**Phase 4 — Scheduler, PACE 4 (UI):** make the Day, Month and Year views work (Week stays unchanged). Day: the existing `Timeline` for one day with prev/next day. Month: a 7-column calendar grid with up to 3 coloured dots per day (use `data-color`), tap a day -> Day view. Year: 12 mini months with busy-day dots, tap a month -> Month view. Keep the category filter + legend working in every view; the SegmentedControl must switch views (remove the "coming soon" note). Put pure helpers in `src/lib/calendar.js` (`monthGrid`, `yearMonths`, range helpers) with `scripts/check-calendar.mjs`; load data with `useServices().activity.list({ from, to, category })` for the visible range only. Follow `docs/DESIGN_LOCK.md` (calm colours, glow only for key info). Needs from user: `src/pages/Scheduler.jsx`, `src/lib/timeline.js`, `src/components/ui/{SegmentedControl,WeekStrip,Timeline}.jsx`, `src/styles/_components.scss`, `docs/design-preview.html`. Stop after PACE 4 and report.
+**Phase 4 — Scheduler, PACE 5 (logic + small UI):** (a) Conflict warning in the schedule form: pure `findConflicts(draftInput, existingActivities)` in `src/lib/conflicts.js` (expand the draft with `occurrenceDates`, compare with existing occurrences by date + time overlap, ignore cancelled/skipped and the schedule being edited); show an amber `NoteBanner` listing up to 3 conflicts (date, time, title) saying "You can still save"; NEVER block saving. (b) Mark an occurrence **Done / Skipped / Undo** from the Scheduler detail card via `ScheduleService.setOccurrenceStatus`; done items look dimmed with a check. (c) History: `ScheduleService.listHistory({ from, to })` (done + skipped, newest first) and a small "Recent history" card in Day view. Add `scripts/check-conflicts.mjs`. Needs from user: `src/pages/ScheduleForm.jsx`, `src/pages/Scheduler.jsx`, `src/services/ScheduleService.js`, `src/lib/timeline.js`, `src/lib/recurrence.js`, `src/lib/scheduleForm.js`. Stop after PACE 5 and report.
 
 ## Phase checklist (from docs/PROJECT_PLAN.md)
 | # | Phase | Status |
@@ -14,7 +14,7 @@
 | 1 | Project foundation (Vite, Bootstrap+SCSS, responsive layout, UI components, Dashboard) | ✅ done |
 | 2 | Firebase + Google sign-in + profiles + security rules | ✅ code done · ⏳ user must add `.env` keys and test sign-in |
 | 3 | Shared core (models, services, repositories, error handling, activity structure) | ✅ done |
-| 4 | Scheduler and calendar | 🟡 PACE 1 ✅ · PACE 2 ✅ · PACE 3 ✅ · PACE 4 next |
+| 4 | Scheduler and calendar | 🟡 PACE 1–4 ✅ · PACE 5 next · PACE 6 after |
 | 5 | Android reminders | ⬜ |
 | 6 | Local databases (IndexedDB / SQLite) | ⬜ |
 | 7 | Offline sync | ⬜ |
@@ -30,10 +30,10 @@ Statuses: ⬜ todo · 🟡 in progress (note which PACE) · ✅ done.
 
 ## Suggested paces
 - **Phase 3:** PACE 1 models · PACE 2 services + repositories (interfaces only, no DB yet) · PACE 3 error handling + common activity structure.
-- **Phase 4:** PACE 1 Scheduler page (done) · PACE 2 occurrence generation (done) · PACE 3 add/edit/delete form (done) · PACE 4 Day/Month/Year views · PACE 5 conflict warning before save + mark done/skipped + history · PACE 6 COR stepper UI (UI only).
+- **Phase 4:** PACE 1 page (done) · PACE 2 occurrence generation (done) · PACE 3 add/edit/delete form (done) · PACE 4 Day/Month/Year views (done) · PACE 5 conflict warning + mark done/skipped + history · PACE 6 COR stepper UI (UI only; real OCR is Phase 8).
 
 ## Open issues / decisions
-- Pre-existing lint warnings (not errors) in Phase 1/2 files: unused imports `NoteBanner`/`FilterChips` in `src/pages/Dashboard.jsx`, unused `navigate` in `src/components/layout/Header.jsx`. Clean up in a later cleanup pace; do not mix with feature work.
+- Lint is clean (0 warnings) as of Phase 4 PACE 4. Keep it that way.
 
 ## Session log (append only — newest at bottom)
 - Phase 1 ✅ · Phase 2 ✅ (code; Firebase test pending on user's side)
@@ -53,3 +53,4 @@ Statuses: ⬜ todo · 🟡 in progress (note which PACE) · ✅ done.
 - Phase 4 PACE 1 ✅: Scheduler page matching the design preview — legend with counts, Day/Week/Month/Year control (only Week active; others show a "coming" note), category filter chips, week strip with busy dots + prev/Today/next, hourly timeline 8AM–6PM with side-by-side overlaps + now line, overlap warning, reminder detail card for the selected event, "Upload COR" button -> `/scheduler/cor` placeholder. New: `src/lib/timeline.js`, `src/components/ui/WeekStrip.jsx`, `Timeline.jsx`, `src/services/demoSeed.js`, `scripts/check-timeline.mjs` (20 checks). Changed: `Scheduler.jsx`, `ServicesProvider.jsx` (seeds sample data in demo mode, shows Loading until ready), `Icon.jsx` (left/right), `_components.scss`. Data comes only from services. Verified in browser (desktop, mobile, dark, interactions).
 - Phase 4 PACE 2 ✅ (logic only, no UI change): `src/lib/recurrence.js` (none/daily/custom/weekly/selectedDays + interval, 366-day window), `ScheduleService.create/update` now generate occurrences via `syncOccurrences` (creates missing, restores re-added, removes only upcoming scheduled ones that no longer match, updates upcoming times, NEVER touches done/skipped/past history; one-time schedules move wholly), `Repository.restore`, injectable clock `createServices(repos, { today })`, `scripts/check-recurrence.mjs` (27 checks), `scripts/check-all.mjs` + `npm run check`. Existing check scripts updated for the new behaviour + fixed test date.
 - Phase 4 PACE 3 ✅: add / edit / delete schedule. New: `src/pages/ScheduleForm.jsx` (routes `/scheduler/new?date=` and `/scheduler/edit/:id`), `src/lib/scheduleForm.js` (pure: drafts, repeat defaults, weekday toggle, draft->service input, focusDate), `src/components/ui/FormField.jsx`, `scripts/check-scheduleform.mjs` (22 checks). Changed: `Scheduler.jsx` (New schedule button, Edit schedule button, `?date=` param, routes), `Dashboard.jsx` (New schedule quick action opens the form), `FilterChips.jsx` (optional `label`), `Icon.jsx` (edit), `_components.scss`. Save goes only through `useServices().schedule.create/update` (generates occurrences; update sends `expectedVersion`). Errors show per field after the first Save attempt and update live. Verified in browser (add, validate, edit, delete, missing id, dashboard link, mobile dark).
+- Phase 4 PACE 4 ✅: Day / Week / Month / Year views all work. New: `src/lib/calendar.js` (monthGrid, yearMonths, viewRange, shiftView, dayCounts…), `src/components/ui/MonthGrid.jsx` (up to 3 dots + "+N" per day), `YearGrid.jsx` (12 mini months, busy days tinted), `scripts/check-calendar.mjs` (16 checks). Changed: `Scheduler.jsx` (rewritten around a `view` state; prev/Today/next follow the view; tapping a day opens Day, tapping a month opens Month; Month shows an agenda card; category filter + legend work in every view), `LineChart.jsx` (removed unused props -> 0 lint warnings), `_components.scss`. Verified in browser (all views, navigation, filter, mobile dark).
