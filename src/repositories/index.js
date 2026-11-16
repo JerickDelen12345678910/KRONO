@@ -8,6 +8,7 @@ import { createWorkout, validateWorkout } from '../models/workout.js';
 import { createDestination, validateDestination } from '../models/place.js';
 import { AppError, ERROR_CODE } from '../lib/errors.js';
 import { MemoryAdapter, createMemoryStore } from './MemoryAdapter.js';
+import { IndexedDBAdapter, openUserDB, closeUserDB, createIndexedDBAdapterFactory } from './IndexedDBAdapter.js';
 import { Repository } from './Repository.js';
 
 // Occurrences and sessions arrive fully built (createOccurrence / createWorkoutSession); the factory only fills base fields.
@@ -28,4 +29,7 @@ export function createRepositories({ userId, store = createMemoryStore(), create
   };
 }
 
-export { Repository, MemoryAdapter, createMemoryStore };
+export {
+  Repository, MemoryAdapter, createMemoryStore,
+  IndexedDBAdapter, openUserDB, closeUserDB, createIndexedDBAdapterFactory,
+};
