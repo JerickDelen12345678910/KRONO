@@ -32,9 +32,10 @@ src/pages/    Dashboard, Scheduler, Fitness, MapPage, Account, Login
 src/routes/   AppRoutes, ProtectedRoute
 src/models/   Shared data shapes + validators (pure JS, no UI/DB). `createX()` builds a record, `validateX()` returns { valid, errors }
 src/repositories/ Repository (validate, version, soft delete, sync status) + MemoryAdapter + createRepositories({ userId })  — storage swappable in Phase 6
-src/services/  ScheduleService, WorkoutService, PlaceService, ActivityService (dashboard timeline), SampleDataService + createServices(repos)
-src/contexts/ServicesProvider.jsx + src/hooks/useServices.js  — screens get services with `const { schedule, workout, place, activity } = useServices()`
-src/lib/timeline.js (pure week/timeline/overlap logic) · src/lib/recurrence.js (repeat rule -> dates) · src/lib/calendar.js (month/year grids, view ranges) · src/lib/scheduleForm.js (form drafts + conversion) · pages/ScheduleForm.jsx · src/services/demoSeed.js (isSample demo data) · src/lib/errors.js (AppError + codes) · src/lib/firebase.js · src/hooks/useOnlineStatus.js · scripts/check-*.mjs (one per area) · scripts/check-all.mjs — run ALL with: npm run check
+src/services/  ScheduleService, WorkoutService, PlaceService, ActivityService (dashboard timeline), SampleDataService, ReminderService (Android/web reminders) + createServices(repos)
+src/reminders/ ReminderAdapter.js (adapter contract + PERMISSION) · MemoryReminderAdapter.js · BrowserNotificationAdapter.js (web, app-open only) · index.js (createDefaultReminderAdapter) — native Android adapter is Phase 13
+src/contexts/ ServicesProvider.jsx + src/hooks/useServices.js  — screens get services with `const { schedule, workout, place, activity, reminders } = useServices()`
+src/lib/timeline.js (pure week/timeline/overlap logic) · src/lib/recurrence.js (repeat rule -> dates) · src/lib/calendar.js (month/year grids, view ranges) · src/lib/scheduleForm.js (form drafts + conversion) · src/lib/reminders.js (pure reminder planning: buildReminders/diffReminders/defaultReminder) · src/lib/reminderSettingsStorage.js (persists global reminder settings; swap target for Phase 6) · pages/ScheduleForm.jsx · src/services/demoSeed.js (isSample demo data) · src/lib/errors.js (AppError + codes) · src/lib/firebase.js · src/hooks/useOnlineStatus.js · scripts/check-*.mjs (one per area) · scripts/check-all.mjs — run ALL with: npm run check
 firestore.rules · storage.rules · .env (never commit) · .env.example
 ```
 

@@ -8,10 +8,11 @@ export const SEMESTER_DAYS = 112;   // default length of a repeating schedule: 1
 
 const weekdayOf = (d) => { const [y, m, day] = d.split('-').map(Number); return new Date(y, m - 1, day).getDay(); };
 
-export function emptyDraft({ date = toLocalDate() } = {}) {
+/** `reminder` defaults to createReminder() for backward compatibility; ScheduleForm.jsx passes defaultReminder(settings) for a NEW schedule. */
+export function emptyDraft({ date = toLocalDate(), reminder = createReminder() } = {}) {
   return {
     title: '', category: 'Personal', description: '', location: '', date,
-    startTime: '08:00', endTime: '09:00', repeat: createRepeatRule(), reminder: createReminder(),
+    startTime: '08:00', endTime: '09:00', repeat: createRepeatRule(), reminder,
   };
 }
 

@@ -4,6 +4,7 @@ import { useServices } from '../hooks/useServices';
 import { CATEGORIES, REMINDER_OFFSETS } from '../models/constants.js';
 import { isDate } from '../models/common.js';
 import { draftFromSchedule, draftToInput, emptyDraft, focusDate, setRepeatType, toggleDay, validateDraft } from '../lib/scheduleForm.js';
+import { defaultReminder } from '../lib/reminders.js';
 import { conflictMessage, conflictRange, findConflicts } from '../lib/conflicts.js';
 import { ERROR_CODE, handleError, isAppError } from '../lib/errors';
 import { Button } from '../components/ui/Button';
@@ -27,9 +28,13 @@ export function ScheduleForm() {
   const editing = Boolean(id);
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const { schedule, activity } = useServices();
+  const { schedule, activity, reminders } = useServices();
 
-  const [draft, setDraft] = useState(() => emptyDraft(isDate(params.get('date')) ? { date: params.get('date') } : {}));
+  // A brand-new schedule starts with the user's current global reminder defaults; editing always loads the saved schedule's own reminder below.
+  const [draft, setDraft] = useState(() => emptyDraft({
+    ...(isDate(params.get('date')) ? { date: params.get('date') } : {}),
+    ...(editing ? {} : { reminder: defaultReminder(reminders.getSettings()) }),
+  }));
   const [version, setVersion] = useState(null);
   const [loading, setLoading] = useState(editing);
   const [missing, setMissing] = useState(false);

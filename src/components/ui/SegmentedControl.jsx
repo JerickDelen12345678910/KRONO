@@ -1,6 +1,6 @@
-export function SegmentedControl({ options, value, onChange, className = '' }) {
+export function SegmentedControl({ options, value, onChange, className = '', ariaLabel = 'View selection' }) {
   return (
-    <div className={`segmented ${className}`} role="group" aria-label="View selection">
+    <div className={`segmented ${className}`} role="group" aria-label={ariaLabel}>
       {options.map(({ value: optValue, label }) => (
         <button
           key={optValue}
