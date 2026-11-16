@@ -31,7 +31,9 @@ src/components/ui/     Button, Card, KPICard, Pill, ToggleSwitch, SegmentedContr
 src/pages/    Dashboard, Scheduler, Fitness, MapPage, Account, Login
 src/routes/   AppRoutes, ProtectedRoute
 src/models/   Shared data shapes + validators (pure JS, no UI/DB). `createX()` builds a record, `validateX()` returns { valid, errors }
-src/lib/firebase.js · src/hooks/useOnlineStatus.js · scripts/check-models.mjs (run: node scripts/check-models.mjs)
+src/repositories/ Repository (validate, version, soft delete, sync status) + MemoryAdapter + createRepositories({ userId })  — storage swappable in Phase 6
+src/services/  ScheduleService, WorkoutService, PlaceService, SampleDataService + createServices(repos)
+src/lib/errors.js (AppError + codes) · src/lib/firebase.js · src/hooks/useOnlineStatus.js · scripts/check-models.mjs · scripts/check-repositories.mjs (run: node scripts/<file>)
 firestore.rules · storage.rules · .env (never commit) · .env.example
 ```
 
@@ -48,6 +50,9 @@ firestore.rules · storage.rules · .env (never commit) · .env.example
 - Recurring items = one `Schedule` definition + dated `Occurrence`s with deterministic id `${scheduleId}_${date}` (retries cannot duplicate).
 - Colors in models are token names (primary/slate/success/warning), never hex.
 
+## 5c. Layers (never skip one)
+Screen/component -> **service** (`src/services`) -> **repository** (`src/repositories`) -> **storage adapter**. Components never touch a repository or database. Errors are `AppError` with a `code`; validation errors carry `details.errors` by field.
+
 ## 6. Known gotchas (already solved — don't reintroduce)
 - `ToggleSwitch` is a `<button>`: use `onClick` + `aria-checked`, not `onChange`/`:checked`.
 - A container can't style itself with `@container`; that's why we use `@media`.
@@ -56,5 +61,5 @@ firestore.rules · storage.rules · .env (never commit) · .env.example
 - PowerShell (Windows): run one command per line.
 
 ## 7. Definition of done (every task)
-- [ ] `npm run build` passes · [ ] checked at **390px and 1280px**, **Light and Dark** · [ ] no horizontal scroll
+- [ ] `npm run build` passes · [ ] `node scripts/check-models.mjs` and `node scripts/check-repositories.mjs` pass · [ ] checked at **390px and 1280px**, **Light and Dark** · [ ] no horizontal scroll
 - [ ] matches design preview · [ ] `git commit -m "phase X: …"` · [ ] `docs/PROGRESS.md` updated (status, NEXT TASK, files changed)

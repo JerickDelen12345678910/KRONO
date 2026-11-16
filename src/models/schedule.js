@@ -57,3 +57,11 @@ export function validateSchedule(s) {
   if (s.reminder?.enabled && !isInt(s.reminder.offsetMinutes, 0, 10080)) e.reminder = 'Reminder time is not valid.';
   return result(e);
 }
+
+export function validateOccurrence(o) {
+  const e = {};
+  if (!isNonEmpty(o.scheduleId)) e.scheduleId = 'Missing schedule.';
+  if (!isDate(o.date)) e.date = 'Pick a date.';
+  if (!Object.values(OCCURRENCE_STATUS).includes(o.status)) e.status = 'Invalid status.';
+  return result(e);
+}

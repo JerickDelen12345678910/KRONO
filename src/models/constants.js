@@ -3,7 +3,7 @@ const freeze = Object.freeze;
 
 // Firestore/local collection names under users/{userId}/ (plan section 8).
 export const COLLECTIONS = freeze({
-  SCHEDULES: 'schedules', ACADEMIC_PERIODS: 'academicPeriods', SUBJECTS: 'subjects',
+  SCHEDULES: 'schedules', OCCURRENCES: 'occurrences', ACADEMIC_PERIODS: 'academicPeriods', SUBJECTS: 'subjects',
   WORKOUTS: 'workouts', EXERCISE_HISTORY: 'exerciseHistory', DESTINATIONS: 'destinations',
   REMINDERS: 'reminders', SYNC_METADATA: 'syncMetadata',
 });
