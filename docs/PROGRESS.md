@@ -6,15 +6,15 @@
 - Build status: passing
 
 ## NEXT TASK  ← start here
-**Phase 3 — Shared application core, PACE 3 (last pace of Phase 3):** (a) extend `src/lib/errors.js`: user-friendly messages (`toUserMessage(error)`), offline/network and unknown error handling, one logging hook; (b) activity mappers in `src/models/activityMappers.js` (occurrence, workout session, destination -> `createActivity`) and an `ActivityService` (`listToday`, `listUpcoming`, filter by module/category); (c) a React `ServicesProvider` + `useServices()` hook in `src/contexts/` that builds `createRepositories({ userId })` + `createServices()` from the signed-in user (components must call services only). Add `scripts/check-activity.mjs`. Stop after PACE 3 and report.
+**Phase 4 — Scheduler, PACE 2 (logic only, no UI change):** occurrence generation. Add `src/lib/recurrence.js` (pure): `occurrenceDates(schedule, { from, to })` for repeat types none / daily / weekly / selectedDays / custom (interval = every N days/weeks; document the rule in the file). Add `ScheduleService.syncOccurrences(scheduleId)` and call it from `create` and `update`: create missing occurrences inside the schedule span (cap ~366 days), remove only FUTURE occurrences that no longer match after an edit, and NEVER delete done/skipped history. Add `scripts/check-recurrence.mjs`. Needs from user: `src/services/ScheduleService.js`, `src/models/schedule.js`, `src/services/demoSeed.js`. Stop after PACE 2 and report.
 
 ## Phase checklist (from docs/PROJECT_PLAN.md)
 | # | Phase | Status |
 |---|-------|--------|
 | 1 | Project foundation (Vite, Bootstrap+SCSS, responsive layout, UI components, Dashboard) | ✅ done |
 | 2 | Firebase + Google sign-in + profiles + security rules | ✅ code done · ⏳ user must add `.env` keys and test sign-in |
-| 3 | Shared core (models, services, repositories, error handling, activity structure) | 🟡 PACE 1 ✅ · PACE 2 ✅ · PACE 3 next |
-| 4 | Scheduler and calendar | ⬜ |
+| 3 | Shared core (models, services, repositories, error handling, activity structure) | ✅ done |
+| 4 | Scheduler and calendar | 🟡 PACE 1 ✅ · PACE 2 next |
 | 5 | Android reminders | ⬜ |
 | 6 | Local databases (IndexedDB / SQLite) | ⬜ |
 | 7 | Offline sync | ⬜ |
@@ -30,7 +30,7 @@ Statuses: ⬜ todo · 🟡 in progress (note which PACE) · ✅ done.
 
 ## Suggested paces
 - **Phase 3:** PACE 1 models · PACE 2 services + repositories (interfaces only, no DB yet) · PACE 3 error handling + common activity structure.
-- **Phase 4:** PACE 1 Scheduler page layout from DESIGN_LOCK (week strip + timeline, sample data) · PACE 2 add/edit schedule form + repeat rules · PACE 3 Day/Month/Year views + filters · PACE 4 conflict warnings + history · PACE 5 COR stepper UI (UI only).
+- **Phase 4:** PACE 1 Scheduler page (done) · PACE 2 occurrence generation (logic) · PACE 3 add/edit/delete schedule form (UI) with reminder + repeat fields · PACE 4 Day/Month/Year views · PACE 5 conflict warning before save + mark done/skipped history · PACE 6 COR stepper UI (UI only).
 
 ## Open issues / decisions
 - Pre-existing lint warnings (not errors) in Phase 1/2 files: unused imports `NoteBanner`/`FilterChips` in `src/pages/Dashboard.jsx`, unused `navigate` in `src/components/layout/Header.jsx`. Clean up in a later cleanup pace; do not mix with feature work.
@@ -49,3 +49,5 @@ Statuses: ⬜ todo · 🟡 in progress (note which PACE) · ✅ done.
   4. Download `google-services.json` into `android/app/`.
   5. Use a native Google sign-in plugin for Capacitor (web popup sign-in is unreliable inside the Android WebView) — confirm the current plugin and steps at that time.
   6. Test sign-in, offline sync and reminders on a real device.
+- Phase 3 PACE 3 ✅: `src/lib/errors.js` (toAppError, toUserMessage, handleError, setErrorLogger), `src/models/activityMappers.js` + date helpers in common.js, `src/services/ActivityService.js` (list, listToday, listUpcoming), `src/contexts/ServicesContext.js` + `ServicesProvider.jsx`, `src/hooks/useServices.js`, wired in `src/main.jsx`. Small edits: AuthContext throws `AppError(OFFLINE)`, Account.jsx shows `handleError(e)` (same visible messages). `scripts/check-activity.mjs` (20 checks) + verified in a real browser. **Phase 3 complete.** No visible UI change.
+- Phase 4 PACE 1 ✅: Scheduler page matching the design preview — legend with counts, Day/Week/Month/Year control (only Week active; others show a "coming" note), category filter chips, week strip with busy dots + prev/Today/next, hourly timeline 8AM–6PM with side-by-side overlaps + now line, overlap warning, reminder detail card for the selected event, "Upload COR" button -> `/scheduler/cor` placeholder. New: `src/lib/timeline.js`, `src/components/ui/WeekStrip.jsx`, `Timeline.jsx`, `src/services/demoSeed.js`, `scripts/check-timeline.mjs` (20 checks). Changed: `Scheduler.jsx`, `ServicesProvider.jsx` (seeds sample data in demo mode, shows Loading until ready), `Icon.jsx` (left/right), `_components.scss`. Data comes only from services. Verified in browser (desktop, mobile, dark, interactions).

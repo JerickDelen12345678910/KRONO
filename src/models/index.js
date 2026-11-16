@@ -6,3 +6,4 @@ export * from './schedule.js';
 export * from './workout.js';
 export * from './place.js';
 export * from './activity.js';
+export * from './activityMappers.js';

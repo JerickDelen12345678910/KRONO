@@ -36,3 +36,12 @@ export const isNonEmpty = (v) => typeof v === 'string' && v.trim().length > 0;
 export const isInt = (v, min = 0, max = Infinity) => Number.isInteger(v) && v >= min && v <= max;
 /** Build the standard validation result: { valid, errors: { field: message } }. */
 export const result = (errors) => ({ valid: Object.keys(errors).length === 0, errors });
+
+// ---- local date helpers (no timezone surprises: everything is the user's local time) ----
+const p2 = (n) => String(n).padStart(2, '0');
+export const toLocalDate = (d = new Date()) => `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
+export const toLocalDateTime = (d = new Date()) => `${toLocalDate(d)}T${p2(d.getHours())}:${p2(d.getMinutes())}`;
+export function addDays(dateStr, n) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return toLocalDate(new Date(y, m - 1, d + n));
+}

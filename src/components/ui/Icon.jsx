@@ -11,6 +11,8 @@ const icons = {
   up: (<><path d="M12 16V4M7 9l5-5 5 5M4 20h16" /></>),
   alert: (<><path d="M12 3l10 18H2zM12 10v5M12 18v.01" /></>),
   lock: (<><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3" /></>),
+  left: (<><path d="M15 6l-6 6 6 6" /></>),
+  right: (<><path d="M9 6l6 6-6 6" /></>),
   nav: (<><path d="M3 11l18-8-8 18-2-8z" /></>),
   cloud: (<><path d="M7 18a4 4 0 0 1-.5-8A6 6 0 0 1 18 9a4.5 4.5 0 0 1 0 9z" /></>),
   sun: (<><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M5 19l1.5-1.5M17.5 6.5L19 5" /></>),

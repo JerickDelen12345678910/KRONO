@@ -2,6 +2,7 @@
 import { ScheduleService } from './ScheduleService.js';
 import { WorkoutService } from './WorkoutService.js';
 import { PlaceService } from './PlaceService.js';
+import { ActivityService } from './ActivityService.js';
 import { SampleDataService } from './SampleDataService.js';
 
 export function createServices(repos) {
@@ -9,7 +10,8 @@ export function createServices(repos) {
     schedule: new ScheduleService(repos),
     workout: new WorkoutService(repos),
     place: new PlaceService(repos),
+    activity: new ActivityService(repos),
     sampleData: new SampleDataService(repos),
   };
 }
-export { ScheduleService, WorkoutService, PlaceService, SampleDataService };
+export { ActivityService, ScheduleService, WorkoutService, PlaceService, SampleDataService };

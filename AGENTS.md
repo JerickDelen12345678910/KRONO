@@ -32,8 +32,9 @@ src/pages/    Dashboard, Scheduler, Fitness, MapPage, Account, Login
 src/routes/   AppRoutes, ProtectedRoute
 src/models/   Shared data shapes + validators (pure JS, no UI/DB). `createX()` builds a record, `validateX()` returns { valid, errors }
 src/repositories/ Repository (validate, version, soft delete, sync status) + MemoryAdapter + createRepositories({ userId })  — storage swappable in Phase 6
-src/services/  ScheduleService, WorkoutService, PlaceService, SampleDataService + createServices(repos)
-src/lib/errors.js (AppError + codes) · src/lib/firebase.js · src/hooks/useOnlineStatus.js · scripts/check-models.mjs · scripts/check-repositories.mjs (run: node scripts/<file>)
+src/services/  ScheduleService, WorkoutService, PlaceService, ActivityService (dashboard timeline), SampleDataService + createServices(repos)
+src/contexts/ServicesProvider.jsx + src/hooks/useServices.js  — screens get services with `const { schedule, workout, place, activity } = useServices()`
+src/lib/timeline.js (pure week/timeline/overlap logic) · src/services/demoSeed.js (isSample demo data) · src/lib/errors.js (AppError + codes) · src/lib/firebase.js · src/hooks/useOnlineStatus.js · scripts/check-models.mjs · scripts/check-repositories.mjs · scripts/check-activity.mjs · scripts/check-timeline.mjs (run: node scripts/<file>)
 firestore.rules · storage.rules · .env (never commit) · .env.example
 ```
 
@@ -51,7 +52,11 @@ firestore.rules · storage.rules · .env (never commit) · .env.example
 - Colors in models are token names (primary/slate/success/warning), never hex.
 
 ## 5c. Layers (never skip one)
-Screen/component -> **service** (`src/services`) -> **repository** (`src/repositories`) -> **storage adapter**. Components never touch a repository or database. Errors are `AppError` with a `code`; validation errors carry `details.errors` by field.
+Screen/component -> **service** (`src/services`) -> **repository** (`src/repositories`) -> **storage adapter**. Components never touch a repository or database. Errors are `AppError` with a `code`; validation errors carry `details.errors` by field. In UI catch blocks show `handleError(e, 'context')` (never raw `e.message`).
+
+## 5d. Scheduler UI notes
+- Category colors use `data-color="primary|slate|success|warning"` (sets `--c`/`--cs`); never hard-code colors in components.
+- The timeline shows only persisted occurrences (see Phase 4 PACE 2). Overlaps never block saving.
 
 ## 6. Known gotchas (already solved — don't reintroduce)
 - `ToggleSwitch` is a `<button>`: use `onClick` + `aria-checked`, not `onChange`/`:checked`.
@@ -61,5 +66,5 @@ Screen/component -> **service** (`src/services`) -> **repository** (`src/reposit
 - PowerShell (Windows): run one command per line.
 
 ## 7. Definition of done (every task)
-- [ ] `npm run build` passes · [ ] `node scripts/check-models.mjs` and `node scripts/check-repositories.mjs` pass · [ ] checked at **390px and 1280px**, **Light and Dark** · [ ] no horizontal scroll
+- [ ] `npm run build` passes · [ ] `node scripts/check-models.mjs` and `node scripts/check-repositories.mjs` and `node scripts/check-activity.mjs` and `node scripts/check-timeline.mjs` pass · [ ] checked at **390px and 1280px**, **Light and Dark** · [ ] no horizontal scroll
 - [ ] matches design preview · [ ] `git commit -m "phase X: …"` · [ ] `docs/PROGRESS.md` updated (status, NEXT TASK, files changed)

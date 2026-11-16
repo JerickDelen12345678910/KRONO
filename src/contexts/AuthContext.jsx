@@ -5,6 +5,7 @@ import {
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db, isFirebaseConfigured } from '../lib/firebase';
+import { AppError, ERROR_CODE } from '../lib/errors';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 
 const AuthContext = createContext(null);
@@ -57,12 +58,12 @@ export function AuthProvider({ children }) {
 
   // Product rule: no sign-out while offline, so local data stays protected.
   const signOut = useCallback(async () => {
-    if (!navigator.onLine) throw new Error('offline');
+    if (!navigator.onLine) throw new AppError(ERROR_CODE.OFFLINE, 'Offline.');
     if (isFirebaseConfigured) await fbSignOut(auth);
   }, []);
 
   const deleteAccount = useCallback(async () => {
-    if (!navigator.onLine) throw new Error('offline');
+    if (!navigator.onLine) throw new AppError(ERROR_CODE.OFFLINE, 'Offline.');
     if (!isFirebaseConfigured) return;
     const current = auth.currentUser;
     // Later phases: also delete this user's schedules, workouts, and Storage files here.

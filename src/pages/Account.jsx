@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { handleError } from '../lib/errors';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { Card } from '../components/ui/Card';
@@ -39,7 +40,7 @@ export function Account() {
   };
   const run = (fn, confirmText) => async () => {
     if (confirmText && !window.confirm(confirmText)) return;
-    try { await fn(); } catch (e) { setMsg(e.message === 'offline' ? 'This needs an internet connection.' : 'Something went wrong. Please try again.'); }
+    try { await fn(); } catch (e) { setMsg(handleError(e, 'account')); }
   };
 
   return (
