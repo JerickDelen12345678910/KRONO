@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Route, Routes, useNavigate, useSearchParams } from 'react-router-dom';
 import { useServices } from '../hooks/useServices';
-import { CATEGORIES, CATEGORY_COLOR } from '../models/constants.js';
-import { isDate, toLocalDate } from '../models/common.js';
+import { CATEGORIES, CATEGORY_COLOR, OCCURRENCE_STATUS } from '../models/constants.js';
+import { addDays, isDate, toLocalDate } from '../models/common.js';
 import { dateOf, findOverlaps, formatRange, timeOf, to12h, weekDates } from '../lib/timeline.js';
 import { dayCounts, monthGrid, pickDayInMonth, shiftView, viewRange, viewTitle, yearMonths } from '../lib/calendar.js';
 import { handleError } from '../lib/errors';
@@ -25,6 +25,12 @@ const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const repeatLabel = (r) => (r.type === 'none' ? 'none' : r.type === 'selectedDays' ? r.daysOfWeek.map((d) => DOW[d]).join(', ') : r.type);
 const longDate = (d) => new Date(`${d}T00:00`).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
 const cap = (s) => `${s[0].toUpperCase()}${s.slice(1)}`;
+const shortDate = (d) => new Date(`${d}T00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+const { SCHEDULED, DONE, SKIPPED } = OCCURRENCE_STATUS;
+const statusWord = (status) => (status === DONE ? 'Done' : status === SKIPPED ? 'Skipped' : '');
+const rowState = (status) => (status === DONE ? ' done' : status === SKIPPED ? ' skipped' : '');
+const HISTORY_DAYS = 30;
+const HISTORY_LIMIT = 10;
 
 function SchedulerHome() {
   const navigate = useNavigate();
@@ -35,7 +41,9 @@ function SchedulerHome() {
   const [view, setView] = useState('week');
   const [category, setCategory] = useState('All');
   const [pickedId, setPickedId] = useState(null);
-  const [data, setData] = useState({ items: [], defs: [], loading: true, error: '' });
+  const [data, setData] = useState({ items: [], defs: [], history: [], loading: true, error: '' });
+  const [busy, setBusy] = useState(false);
+  const [reload, setReload] = useState(0);   // bumped after a status change to re-read the data
 
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 60000);
@@ -49,17 +57,19 @@ function SchedulerHome() {
     let alive = true;
     (async () => {
       try {
-        const [items, defs] = await Promise.all([
-          activity.list({ from, to, category: category === 'All' ? undefined : category }),
+        const filter = category === 'All' ? undefined : category;
+        const [items, defs, history] = await Promise.all([
+          activity.list({ from, to, category: filter }),
           schedule.list(),
+          view === 'day' ? schedule.listHistory({ from: addDays(today, -HISTORY_DAYS), to: today, category: filter, limit: HISTORY_LIMIT }) : [],
         ]);
-        if (alive) setData({ items, defs, loading: false, error: '' });
+        if (alive) setData({ items, defs, history, loading: false, error: '' });
       } catch (e) {
         if (alive) setData((d) => ({ ...d, loading: false, error: handleError(e, 'scheduler') }));
       }
     })();
     return () => { alive = false; };
-  }, [activity, schedule, from, to, category]);
+  }, [activity, schedule, from, to, category, view, today, reload]);
 
   const dayItems = data.items.filter((a) => dateOf(a.startsAt) === selected);
   const counts = useMemo(() => dayCounts(data.items), [data.items]);
@@ -70,6 +80,20 @@ function SchedulerHome() {
 
   const go = (n) => { setSelected((d) => shiftView(view, d, n)); setPickedId(null); };
   const pickDay = (d) => { setSelected(d); setPickedId(null); };
+
+  // Done / Skipped / Undo for the selected occurrence (goes through the service, then the data is re-read).
+  const mark = async (next) => {
+    if (!current || busy) return;
+    setBusy(true);
+    try {
+      await schedule.setOccurrenceStatus(current.refs.occurrenceId, next);
+      setReload((n) => n + 1);
+    } catch (e) {
+      setData((d) => ({ ...d, error: handleError(e, 'scheduler-status') }));
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const dayCard = (
     <Card variant="pri" header={<>{longDate(selected)} <span>{dayItems.length} {dayItems.length === 1 ? 'item' : 'items'}</span></>}>
@@ -82,14 +106,43 @@ function SchedulerHome() {
     <Button variant="secondary" fullWidth leftIcon="up" onClick={() => navigate('/scheduler/cor')}>Upload COR to build class schedule</Button>
   );
 
+  const status = current?.status;
+  const canMark = status === SCHEDULED || status === DONE || status === SKIPPED;
   const reminderCard = current && def && (
     <Card header={<>Reminder <span>{current.title}</span></>}>
       <div className="detail-pills">
+        {statusWord(status) && <Pill variant={status === DONE ? 'ok' : 'fit'}>{statusWord(status)}</Pill>}
         <Pill variant="fit">{def.reminder.enabled ? (def.reminder.useAlarm ? 'Notify + alarm' : 'Notify only') : 'Reminder off'}</Pill>
         {def.reminder.enabled && <Pill variant="fit">{def.reminder.offsetMinutes === 0 ? 'At start time' : `${def.reminder.offsetMinutes} min before`}</Pill>}
         <Pill variant="fit">{`Repeat: ${repeatLabel(def.repeat)}`}</Pill>
       </div>
+      {canMark && (
+        <div className="status-actions">
+          {status === SCHEDULED && (
+            <>
+              <Button leftIcon="check" disabled={busy} onClick={() => mark(DONE)}>Mark done</Button>
+              <Button variant="secondary" disabled={busy} onClick={() => mark(SKIPPED)}>Skip</Button>
+            </>
+          )}
+          {status !== SCHEDULED && <Button variant="secondary" leftIcon="undo" disabled={busy} onClick={() => mark(SCHEDULED)}>Undo</Button>}
+        </div>
+      )}
       <Button variant="secondary" fullWidth leftIcon="edit" className="mt-3" onClick={() => navigate(`/scheduler/edit/${def.id}`)}>Edit schedule</Button>
+    </Card>
+  );
+
+  const historyCard = view === 'day' && (
+    <Card header={<>Recent history <span>Last {HISTORY_DAYS} days</span></>}>
+      {!data.loading && data.history.length === 0 && <p className="empty-hint">Nothing marked done or skipped yet.</p>}
+      {data.history.map((h) => (
+        <div key={h.id} className="list-row">
+          <span className="row-time">{shortDate(h.date)}</span>
+          <div className="row-content">
+            <b className="row-title">{h.status === DONE && <Icon name="check" size={14} className="row-check" />}{h.title}</b>
+            <small className="row-subtitle">{`${to12h(h.startTime)}–${to12h(h.endTime)} · ${statusWord(h.status)}`}</small>
+          </div>
+        </div>
+      ))}
     </Card>
   );
 
@@ -103,9 +156,12 @@ function SchedulerHome() {
     <Card header={<>{longDate(selected)} <span>{dayItems.length} {dayItems.length === 1 ? 'item' : 'items'}</span></>}>
       {dayItems.length === 0 && <p className="empty-hint">Nothing scheduled for this day.</p>}
       {dayItems.map((a) => (
-        <div key={a.id} className="list-row" data-color={CATEGORY_COLOR[a.category] ?? 'primary'}>
+        <div key={a.id} className={`list-row${rowState(a.status)}`} data-color={CATEGORY_COLOR[a.category] ?? 'primary'}>
           <span className="row-time">{to12h(timeOf(a.startsAt))}</span>
-          <div className="row-content"><b className="row-title">{a.title}</b><small className="row-subtitle">{formatRange(a)}{a.subtitle ? ` · ${a.subtitle}` : ''}</small></div>
+          <div className="row-content">
+            <b className="row-title">{a.status === DONE && <Icon name="check" size={14} className="row-check" />}{a.title}</b>
+            <small className="row-subtitle">{formatRange(a)}{a.subtitle ? ` · ${a.subtitle}` : ''}{statusWord(a.status) ? ` · ${statusWord(a.status)}` : ''}</small>
+          </div>
         </div>
       ))}
       <Button variant="secondary" fullWidth className="mt-3" onClick={() => setView('day')}>Open day</Button>
@@ -151,6 +207,7 @@ function SchedulerHome() {
             {(view === 'day' || view === 'week') && overlapNote}
             {cocActions}
             {(view === 'day' || view === 'week') && reminderCard}
+            {historyCard}
             {view === 'month' && agenda}
           </div>
         )}

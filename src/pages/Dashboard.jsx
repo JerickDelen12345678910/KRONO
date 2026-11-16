@@ -3,8 +3,6 @@ import { KPICard } from '../components/ui/KPICard';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Pill } from '../components/ui/Pill';
-import { NoteBanner } from '../components/ui/NoteBanner';
-import { FilterChips } from '../components/ui/FilterChips';
 import { LineChartWidget } from '../components/ui/LineChart';
 import { Icon } from '../components/ui/Icon';
 import { Row } from '../components/ui/Row';

@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useServices } from '../hooks/useServices';
 import { CATEGORIES, REMINDER_OFFSETS } from '../models/constants.js';
 import { isDate } from '../models/common.js';
 import { draftFromSchedule, draftToInput, emptyDraft, focusDate, setRepeatType, toggleDay, validateDraft } from '../lib/scheduleForm.js';
+import { conflictMessage, conflictRange, findConflicts } from '../lib/conflicts.js';
 import { ERROR_CODE, handleError, isAppError } from '../lib/errors';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
@@ -26,7 +27,7 @@ export function ScheduleForm() {
   const editing = Boolean(id);
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const { schedule } = useServices();
+  const { schedule, activity } = useServices();
 
   const [draft, setDraft] = useState(() => emptyDraft(isDate(params.get('date')) ? { date: params.get('date') } : {}));
   const [version, setVersion] = useState(null);
@@ -35,6 +36,7 @@ export function ScheduleForm() {
   const [submitted, setSubmitted] = useState(false);
   const [formError, setFormError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [existing, setExisting] = useState([]);
 
   useEffect(() => {
     if (!id) return undefined;
@@ -46,6 +48,21 @@ export function ScheduleForm() {
     });
     return () => { alive = false; };
   }, [id, schedule]);
+
+  // Conflict warning: load what is already scheduled on the dates this draft covers, then compare (pure, see lib/conflicts.js).
+  const input = useMemo(() => draftToInput(draft), [draft]);
+  const range = conflictRange(input);
+  const rangeFrom = range?.from ?? null;
+  const rangeTo = range?.to ?? null;
+  useEffect(() => {
+    if (!rangeFrom) return undefined;
+    let alive = true;
+    activity.list({ from: rangeFrom, to: rangeTo })
+      .then((rows) => { if (alive) setExisting(rows); })
+      .catch((err) => { handleError(err, 'schedule-conflicts'); if (alive) setExisting([]); });   // the warning is optional: never block the form
+    return () => { alive = false; };
+  }, [activity, rangeFrom, rangeTo]);
+  const conflicts = useMemo(() => findConflicts(input, existing, { ignoreScheduleId: editing ? id : null }), [input, existing, editing, id]);
 
   const set = (key) => (e) => setDraft((d) => ({ ...d, [key]: e.target.value }));
   const setRepeat = (key) => (e) => setDraft((d) => ({ ...d, repeat: { ...d.repeat, [key]: e.target.value } }));
@@ -131,6 +148,7 @@ export function ScheduleForm() {
                 <input type="time" value={draft.endTime} onChange={set('endTime')} {...invalid('endTime')} />
               </FormField>
             </div>
+            {conflicts.length > 0 && <NoteBanner className="mt-3">{conflictMessage(conflicts)}</NoteBanner>}
           </Card>
 
           <Card header="Repeat">
@@ -199,4 +217,3 @@ export function ScheduleForm() {
     </form>
   );
 }
-

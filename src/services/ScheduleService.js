@@ -99,6 +99,21 @@ export class ScheduleService {
     return rows.sort(byDateTime);
   }
 
+  /**
+   * History = done + skipped occurrences, newest first. listHistory({ from, to, category, limit })
+   * Each row is the occurrence plus its schedule's `title` and `category`; deleted schedules are left out.
+   */
+  async listHistory({ from, to, category, limit } = {}) {
+    const [schedules, rows] = await Promise.all([this.schedules.list(), this.listOccurrences({ from, to })]);
+    const byId = new Map(schedules.map((s) => [s.id, s]));
+    const history = rows
+      .filter((o) => (o.status === OCCURRENCE_STATUS.DONE || o.status === OCCURRENCE_STATUS.SKIPPED) && byId.has(o.scheduleId))
+      .map((o) => ({ ...o, title: byId.get(o.scheduleId).title, category: byId.get(o.scheduleId).category }))
+      .filter((o) => !category || category === 'All' || o.category === category)
+      .sort((a, b) => byDateTime(b, a));
+    return limit ? history.slice(0, limit) : history;
+  }
+
   setOccurrenceStatus(id, status) {
     if (!Object.values(OCCURRENCE_STATUS).includes(status)) throw new AppError(ERROR_CODE.INVALID, 'Unknown status.', { status });
     return this.occurrences.update(id, { status, completedAt: status === OCCURRENCE_STATUS.DONE ? nowIso() : null });

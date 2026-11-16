@@ -1096,3 +1096,12 @@ h1, h2, h3, h4, h5, h6 { margin: 0; font-weight: 700; line-height: 1.25; }
 .mini-day.out { visibility: hidden; }
 .mini-day.busy { background: var(--pri-s); color: var(--pri); font-weight: 700; }
 .mini-day.today { box-shadow: inset 0 0 0 1px var(--pri); color: var(--pri); font-weight: 700; }
+
+// --- Phase 4 PACE 5: done / skipped, status buttons, history ---
+.status-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.list-row.done, .list-row.skipped { opacity: 0.6; }
+.list-row.skipped .row-title { text-decoration: line-through; }
+.row-check { margin-right: 4px; vertical-align: -2px; }
+// Timeline blocks already get `.done` (dimmed, see above); add the check mark (drawn with borders, no emoji).
+.timeline-event.done { padding-right: 24px; }
+.timeline-event.done::after { content: ""; position: absolute; top: 8px; right: 9px; width: 5px; height: 10px; border: solid currentColor; border-width: 0 2px 2px 0; transform: rotate(45deg); }

@@ -19,6 +19,8 @@ const icons = {
   sun: (<><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M5 19l1.5-1.5M17.5 6.5L19 5" /></>),
   moon: (<><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z" /></>),
   doc: (<><path d="M6 3h8l5 5v13H6zM14 3v5h5" /></>),
+  check: (<><path d="M5 12.5l4.5 4.5L19 7.5" /></>),
+  undo: (<><path d="M9 14L4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3" /></>),
   // Add more as needed
 };
 
