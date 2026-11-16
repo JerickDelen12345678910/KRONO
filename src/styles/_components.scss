@@ -1105,3 +1105,20 @@ h1, h2, h3, h4, h5, h6 { margin: 0; font-weight: 700; line-height: 1.25; }
 // Timeline blocks already get `.done` (dimmed, see above); add the check mark (drawn with borders, no emoji).
 .timeline-event.done { padding-right: 24px; }
 .timeline-event.done::after { content: ""; position: absolute; top: 8px; right: 9px; width: 5px; height: 10px; border: solid currentColor; border-width: 0 2px 2px 0; transform: rotate(45deg); }
+
+// --- Phase 4 PACE 6: COR stepper (Upload -> Review -> Create) ---
+.cor-list { display: grid; gap: 8px; margin: 12px 0; }
+.cor-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 2px 12px; align-items: center; padding: 12px; background: var(--sf2); border-radius: 12px; cursor: pointer; }
+.cor-row.plain { grid-template-columns: minmax(0, 1fr) auto; cursor: default; }
+.cor-row input { width: 18px; height: 18px; margin: 0; accent-color: var(--pri); }
+.cor-row.warn { outline: 2px solid var(--warn); }
+.cor-row:focus-within { outline: 2px solid var(--pri); outline-offset: 2px; }
+.cor-main { display: grid; gap: 2px; min-width: 0; }
+.cor-main b { font-size: 14px; font-weight: 700; overflow-wrap: anywhere; }
+.cor-main small { font-size: 12px; font-weight: 600; color: var(--mu); }
+.cor-main small.cor-note { color: var(--warn); }
+.cor-file-ico { flex: none; width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; background: var(--pri-s); color: var(--pri); }
+.file-item > div { min-width: 0; }
+.file-item b { overflow-wrap: anywhere; }
+.cor-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.cor-actions .btn { flex: 1 1 auto; }

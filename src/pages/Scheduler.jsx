@@ -17,6 +17,7 @@ import { SegmentedControl } from '../components/ui/SegmentedControl';
 import { Timeline } from '../components/ui/Timeline';
 import { WeekStrip } from '../components/ui/WeekStrip';
 import { YearGrid } from '../components/ui/YearGrid';
+import { CorUpload } from './CorUpload';
 import { ScheduleForm } from './ScheduleForm';
 
 const VIEWS = [{ value: 'day', label: 'Day' }, { value: 'week', label: 'Week' }, { value: 'month', label: 'Month' }, { value: 'year', label: 'Year' }];
@@ -217,23 +218,11 @@ function SchedulerHome() {
   );
 }
 
-function CorPlaceholder() {
-  const navigate = useNavigate();
-  return (
-    <div className="stack">
-      <Card header="Upload COR">
-        <p className="empty-hint">The COR upload and review steps are built in a later step of Phase 4. Nothing is uploaded yet.</p>
-        <Button variant="secondary" leftIcon="left" onClick={() => navigate('/scheduler')}>Back to Scheduler</Button>
-      </Card>
-    </div>
-  );
-}
-
 export function Scheduler() {
   return (
     <Routes>
       <Route index element={<SchedulerHome />} />
-      <Route path="cor" element={<CorPlaceholder />} />
+      <Route path="cor" element={<CorUpload />} />
       <Route path="new" element={<ScheduleForm />} />
       <Route path="edit/:id" element={<ScheduleForm />} />
     </Routes>
