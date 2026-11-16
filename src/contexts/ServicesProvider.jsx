@@ -4,6 +4,7 @@ import { ServicesContext } from './ServicesContext';
 import { createRepositories, createMemoryStore } from '../repositories/index.js';
 import { createServices } from '../services/index.js';
 import { seedDemoData } from '../services/demoSeed.js';
+import { createDefaultReminderAdapter } from '../reminders/index.js';
 
 // Shared in-memory data. Phase 6 replaces this with IndexedDB (web) / SQLite (Android) adapters.
 const store = createMemoryStore();
@@ -16,9 +17,12 @@ export function ServicesProvider({ children }) {
   useEffect(() => {
     if (!uid) return undefined;
     let alive = true;
-    const services = createServices(createRepositories({ userId: uid, store }));
-    (demo ? seedDemoData(services) : Promise.resolve()).then(() => { if (alive) setReady({ uid, services }); });
-    return () => { alive = false; };
+    const services = createServices(createRepositories({ userId: uid, store }), { reminderAdapter: createDefaultReminderAdapter() });
+    (demo ? seedDemoData(services) : Promise.resolve())
+      .then(() => services.reminders.sync())   // seeded demo data must get its reminders too (idempotent, never rejects)
+      .then(() => { if (alive) setReady({ uid, services }); });
+    // Stop the reminder timers of these services (sign-out, StrictMode's double effect) so two copies never fire.
+    return () => { alive = false; services.reminders.dispose(); };
   }, [uid, demo]);
 
   const services = ready.uid === uid ? ready.services : null;

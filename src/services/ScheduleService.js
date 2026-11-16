@@ -8,9 +8,17 @@ import { AppError, ERROR_CODE } from '../lib/errors.js';
 const byDateTime = (a, b) => `${a.date}${a.startTime}`.localeCompare(`${b.date}${b.startTime}`);
 
 export class ScheduleService {
-  /** `today` is injectable so tests (and a future "pretend date") are deterministic. */
-  constructor({ schedules, occurrences }, { today = () => toLocalDate() } = {}) {
-    this.schedules = schedules; this.occurrences = occurrences; this.today = today;
+  /**
+   * `today` is injectable so tests (and a future "pretend date") are deterministic.
+   * `onChange(change)` is an optional hook called AFTER a schedule or occurrence was saved (used to keep reminders in step);
+   * this service knows nothing about what it does. It is never awaited and a failing hook can never break saving.
+   */
+  constructor({ schedules, occurrences }, { today = () => toLocalDate(), onChange } = {}) {
+    this.schedules = schedules; this.occurrences = occurrences; this.today = today; this.onChange = onChange;
+  }
+
+  changed(change) {
+    try { Promise.resolve(this.onChange?.(change)).catch(() => {}); } catch { /* saving must never fail because of a hook */ }
   }
 
   /** Creating a schedule also generates its occurrences. */
@@ -62,6 +70,7 @@ export class ScheduleService {
       if (o.deleted || target.has(o.date)) continue;
       if (editable(o)) { await this.occurrences.remove(o.id); sum.removed += 1; } else sum.kept += 1;
     }
+    this.changed({ type: 'occurrences', scheduleId });   // create() and update() both end here
     return sum;
   }
   get(id) { return this.schedules.get(id); }
@@ -81,13 +90,16 @@ export class ScheduleService {
     const removed = await this.schedules.remove(id);
     const occ = await this.occurrences.list({ where: { scheduleId: id } });
     await Promise.all(occ.map((o) => this.occurrences.remove(o.id)));
+    this.changed({ type: 'remove', scheduleId: id });
     return removed;
   }
 
   /** Safe to call repeatedly for the same schedule + date (deterministic id, no duplicates). */
   async addOccurrence(scheduleId, date) {
     const schedule = await this.schedules.require(scheduleId);
-    return this.occurrences.getOrCreate(createOccurrence(schedule, date));
+    const occurrence = await this.occurrences.getOrCreate(createOccurrence(schedule, date));
+    this.changed({ type: 'occurrence', scheduleId, date });
+    return occurrence;
   }
 
   /** listOccurrences({ date } | { from, to }, scheduleId) */
@@ -116,6 +128,7 @@ export class ScheduleService {
 
   setOccurrenceStatus(id, status) {
     if (!Object.values(OCCURRENCE_STATUS).includes(status)) throw new AppError(ERROR_CODE.INVALID, 'Unknown status.', { status });
-    return this.occurrences.update(id, { status, completedAt: status === OCCURRENCE_STATUS.DONE ? nowIso() : null });
+    return Promise.resolve(this.occurrences.update(id, { status, completedAt: status === OCCURRENCE_STATUS.DONE ? nowIso() : null }))
+      .then((occurrence) => { this.changed({ type: 'status', occurrenceId: id, status }); return occurrence; });
   }
 }
