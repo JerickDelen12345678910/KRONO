@@ -12,8 +12,8 @@ const DEFAULT_INTERVAL_MS = 20000;   // how often SyncService sweeps on its own,
  * there is no separate operation log (decided 2026-11-17).
  *
  * sync() is idempotent and safe to call as often as you like: overlapping calls are merged, a run with nothing
- * pending touches nothing, and it NEVER rejects (a failing push gives { ok: false, error } and `lastError`), so
- * sync can never break saving. Conflicts (a newer remote record already exists) are counted but left pending —
+ * pending touches nothing, and it NEVER rejects (a failing push, or one record the adapter reports as an `error`,
+ * gives { ok: false } and `lastError`; the failed records simply stay pending), so sync can never break saving. Conflicts (a newer remote record already exists) are counted but left pending —
  * resolving them by pulling the remote winner down into local storage is Phase 7 PACE 3; until then a conflicting
  * record is safely re-attempted (and re-reported as a conflict) on every sweep without duplicating or corrupting
  * anything, since push() is an upsert check, not an append.
@@ -82,6 +82,9 @@ export class SyncService {
           try { await repo.setSyncStatus(r.id, SYNC_STATUS.SYNCED); } catch (e) { ok = false; error = e; }
         } else if (r.status === 'conflict') {
           conflicts += 1;
+        } else if (r.status === 'error') {
+          ok = false;   // this record stays pending and is retried next sweep; the others in the batch are unaffected
+          error = r.error ?? new Error(`Sync failed for ${collection}/${r.id}`);
         }
       }));
     }));

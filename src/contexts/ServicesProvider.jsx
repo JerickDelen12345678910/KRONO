@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { doc, runTransaction } from 'firebase/firestore';
 import { useAuth } from './AuthContext';
 import { ServicesContext } from './ServicesContext';
 import { createRepositories, createMemoryStore, createIndexedDBAdapterFactory, closeUserDB } from '../repositories/index.js';
@@ -7,6 +8,7 @@ import { seedDemoData } from '../services/demoSeed.js';
 import { createDefaultReminderAdapter } from '../reminders/index.js';
 import { loadReminderSettings, saveReminderSettings } from '../lib/reminderSettingsStorage.js';
 import { createDefaultSyncAdapter } from '../sync/index.js';
+import { db, isFirebaseConfigured } from '../lib/firebase';
 
 // Demo mode's data is throwaway, so it stays in one shared in-memory store for the app's lifetime (never persisted).
 const demoStore = createMemoryStore();
@@ -28,7 +30,8 @@ export function ServicesProvider({ children }) {
       reminderAdapter: createDefaultReminderAdapter(),
       reminderSettings: loadReminderSettings(),
       onReminderSettingsChange: saveReminderSettings,
-      syncAdapter: createDefaultSyncAdapter(),   // Phase 7 PACE 1: always the in-memory fake until PACE 2 adds a real backend
+      // Phase 7 PACE 2: real signed-in users sync to Firestore (users/{uid}/…); demo mode keeps the in-memory fake.
+      syncAdapter: createDefaultSyncAdapter({ userId: uid, demo, firestore: isFirebaseConfigured && db ? { db, doc, runTransaction } : null }),
     });
     (demo ? seedDemoData(services) : Promise.resolve())
       .then(() => services.reminders.sync())   // seeded demo data must get its reminders too (idempotent, never rejects)

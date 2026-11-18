@@ -1,11 +1,14 @@
-// Picks the sync adapter for this environment. For now this ALWAYS returns the in-memory fake — there is no real
-// backend yet. Phase 7 PACE 2 adds a Firestore adapter and extends this to return it when Firebase is configured
-// and the user is not in demo mode — the same pattern createDefaultReminderAdapter() already uses.
+// Picks the sync adapter for this environment. Real (non-demo) users with Firebase configured get the Firestore
+// adapter (Phase 7 PACE 2); demo mode, or anything without a Firestore instance, gets the in-memory fake — the same
+// pattern createDefaultReminderAdapter() uses. `firestore` is { db, doc, runTransaction }; ServicesProvider supplies it
+// (this file never imports src/lib/firebase.js, which needs Vite's import.meta.env and so cannot load in Node tests).
 import { MemorySyncAdapter } from './MemorySyncAdapter.js';
+import { FirestoreSyncAdapter } from './FirestoreSyncAdapter.js';
 
-export function createDefaultSyncAdapter() {
+export function createDefaultSyncAdapter({ userId = null, demo = true, firestore = null } = {}) {
+  if (!demo && userId && firestore?.db) return new FirestoreSyncAdapter({ userId, firestore });
   return new MemorySyncAdapter();
 }
 
-export { MemorySyncAdapter };
+export { MemorySyncAdapter, FirestoreSyncAdapter };
 export { assertSyncAdapter, SYNC_RESULT, ADAPTER_METHODS } from './SyncAdapter.js';
