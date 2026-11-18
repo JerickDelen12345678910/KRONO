@@ -56,6 +56,9 @@ export class SyncService {
     this.dirty = false;
     this.forcePull = false;
     this.lastPullAt = null;
+    this.lastSyncedAt = null;   // ms; when a run last finished with nothing failing (null until then)
+    this.active = false;        // true while a run is executing (what the UI shows as "Syncing")
+    this.listeners = new Set();
     this.disposed = false;
     this.lastResult = null;
     this.lastError = null;
@@ -86,6 +89,36 @@ export class SyncService {
     return this.running;
   }
 
+  /**
+   * Tell `listener(event)` what sync is doing, so the UI can show it (Phase 7 PACE 4). Returns an unsubscribe function.
+   * Events: { type: 'run-start' } · { type: 'run-end', result } · { type: 'pulled', changed: { collection: count } }
+   * (records from the backend were stored locally: pulled, or won a push conflict). A throwing listener never affects sync.
+   */
+  subscribe(listener) {
+    this.listeners.add(listener);
+    return () => { this.listeners.delete(listener); };
+  }
+
+  emit(event) {
+    for (const listener of [...this.listeners]) {
+      try { listener(event); } catch { /* a failing listener can never break sync */ }
+    }
+  }
+
+  /**
+   * A snapshot for the UI. Never rejects. `pending` = records not yet synced (deletion markers included), or null when
+   * local storage could not be read. Local edits emit no event, so a screen that shows this re-reads it now and then.
+   */
+  async getStatus() {
+    let pending = 0;
+    try {
+      for (const repo of Object.values(this.repos)) {
+        if (typeof repo.listUnsynced === 'function') pending += (await repo.listUnsynced()).length;
+      }
+    } catch { pending = null; }
+    return { running: this.active, pending, ok: this.lastResult?.ok ?? null, lastSyncedAt: this.lastSyncedAt, lastError: this.lastError };
+  }
+
   /** Resolves when no sync is running (handy in tests). */
   async whenIdle() {
     while (this.running) await this.running;
@@ -97,6 +130,15 @@ export class SyncService {
   }
 
   async run() {
+    this.active = true;
+    this.emit({ type: 'run-start' });
+    let result;
+    try { result = await this.execute(); } finally { this.active = false; }
+    this.emit({ type: 'run-end', result });
+    return result;
+  }
+
+  async execute() {
     const sum = { ...NOTHING };
     const changed = {};   // collection -> how many local records came from the backend during this run
     let ok = true;
@@ -160,9 +202,13 @@ export class SyncService {
       }));
     }));
 
-    if (Object.keys(changed).length && this.onPulled && !this.disposed) {
-      try { Promise.resolve(this.onPulled(changed)).catch(() => {}); } catch { /* a failing hook can never break sync */ }
+    if (Object.keys(changed).length && !this.disposed) {
+      this.emit({ type: 'pulled', changed });
+      if (this.onPulled) {
+        try { Promise.resolve(this.onPulled(changed)).catch(() => {}); } catch { /* a failing hook can never break sync */ }
+      }
     }
+    if (ok && !this.disposed) this.lastSyncedAt = this.now();
     this.lastError = error;
     this.lastResult = { ok, ...sum };
     return this.lastResult;
@@ -171,6 +217,7 @@ export class SyncService {
   /** Stop everything (sign-out, React cleanup). Later sync() calls do nothing. */
   dispose() {
     this.disposed = true;
+    this.listeners.clear();
     if (this.timer) clearInterval(this.timer);
     this.adapter.dispose?.();
   }

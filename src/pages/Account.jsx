@@ -3,6 +3,8 @@ import { handleError } from '../lib/errors';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useServices } from '../hooks/useServices';
+import { useSyncStatus } from '../hooks/useSyncStatus';
+import { pipelineSteps } from '../lib/syncStatus.js';
 import { REMINDER_OFFSETS } from '../models/constants.js';
 import { REMINDER_SOUNDS, SNOOZE_OPTIONS } from '../lib/reminders.js';
 import { PERMISSION } from '../reminders/ReminderAdapter.js';
@@ -41,6 +43,7 @@ export function Account() {
   const { user, profile, online, demo, updateProfile, signOut, deleteAccount } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const { reminders } = useServices();
+  const steps = pipelineSteps(useSyncStatus());
   const [form, setForm] = useState({
     displayName: profile?.displayName || '', userType: profile?.userType || '',
     school: profile?.school || '', course: profile?.course || '', yearLevel: profile?.yearLevel || '',
@@ -103,11 +106,10 @@ export function Account() {
           </Card>
           <Card>
             <h3 className="ui-card-header">Sync status <Pill variant={online ? 'ok' : 'warn'}>{online ? 'Online' : 'Offline'}</Pill></h3>
-            <div className="pipeline">
-              <span className="pipeline-step done">Saved locally</span>
-              <span className="pipeline-step current">Waiting</span>
-              <span className="pipeline-step">Syncing</span>
-              <span className="pipeline-step">Synced</span>
+            <div className="pipeline" role="group" aria-label={`Sync progress: ${steps.find((s) => s.state === 'current')?.label ?? 'Synced'}`}>
+              {steps.map((step) => (
+                <span key={step.label.split(' · ')[0]} className={`pipeline-step${step.state ? ` ${step.state}` : ''}`} aria-current={step.state === 'current' ? 'step' : undefined}>{step.label}</span>
+              ))}
             </div>
             <small className="row-subtitle d-block mt-2">Changes save on this device first, then sync when you are online.</small>
           </Card>

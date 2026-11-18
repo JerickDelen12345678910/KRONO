@@ -1,6 +1,6 @@
-// Phase 7 PACE 1-3 — sync adapter contract, MemorySyncAdapter (fake/demo), FirestoreSyncAdapter (real cloud, tested here
+// Phase 7 PACE 1-4 — sync adapter contract, MemorySyncAdapter (fake/demo), FirestoreSyncAdapter (real cloud, tested here
 // against a fake Firestore — no network), cursor stores, Repository.applyRemote, and SyncService (pull, then push, with
-// conflicts resolved last-write-wins). Uses the `exerciseHistory` repository as
+// conflicts resolved last-write-wins), and what the UI shows about it (status snapshot, events, Account pipeline steps). Uses the `exerciseHistory` repository as
 // a generic stand-in throughout: its factory/validator are deliberately permissive (no required fields), so these
 // tests exercise SyncService's own logic without needing the shape of a schedule/workout/destination record.
 import {
@@ -8,6 +8,7 @@ import {
 } from '../src/sync/index.js';
 import { toRemote, fromRemote } from '../src/sync/FirestoreSyncAdapter.js';
 import { AppError, ERROR_CODE } from '../src/lib/errors.js';
+import { pipelineSteps, PIPELINE_STEPS } from '../src/lib/syncStatus.js';
 import { SyncService } from '../src/services/SyncService.js';
 import { createServices } from '../src/services/index.js';
 import { createRepositories, createMemoryStore } from '../src/repositories/index.js';
@@ -599,10 +600,67 @@ const pullsOf = (adapter) => adapter.calls.filter((c) => c.method === 'pull' && 
   check('once everything is synced a pull applies nothing and a push sends nothing', settled.pullApplied === 0 && settled.pushed === 0);
 }
 
+// =====================================================================================================
+// Phase 7 PACE 4 — what the UI can know about sync: pipeline steps (pure), SyncService.getStatus() and subscribe().
+// =====================================================================================================
+{
+  const show = (status) => pipelineSteps(status).map((x) => `${x.label}:${x.state}`).join('|');
+  check('pipeline: changes waiting -> Saved locally done, "Waiting · N" current, the rest plain', show({ running: false, pending: 3 }) === 'Saved locally:done|Waiting · 3:current|Syncing:|Synced:');
+  check('pipeline: syncing now -> Saved locally and Waiting done, Syncing current', show({ running: true, pending: 3 }) === 'Saved locally:done|Waiting:done|Syncing:current|Synced:');
+  check('pipeline: nothing pending and not running -> every step done', show({ running: false, pending: 0 }) === 'Saved locally:done|Waiting:done|Syncing:done|Synced:done');
+  check('pipeline: pending unknown counts as waiting (never claims Synced), without a number', show({ running: false, pending: null }) === 'Saved locally:done|Waiting:current|Syncing:|Synced:' && show() === show({ pending: null }));
+  check('pipeline always has the four design steps in order', pipelineSteps({ pending: 0 }).map((x) => x.label).join() === PIPELINE_STEPS.join());
+}
+{
+  const events = [];
+  const d = device('st1', new MemorySyncAdapter(), { onPulled: () => { throw new Error('a failing hook must not matter'); } });
+  d.sync.subscribe(() => { throw new Error('a failing listener must not matter'); });
+  let activeDuringRun = null;
+  const off = d.sync.subscribe((e) => { events.push(e.type); if (e.type === 'run-start') activeDuringRun = d.sync.active; });
+
+  const idle = await d.sync.getStatus();
+  check('getStatus before anything happened: idle, nothing pending, never synced', idle.running === false && idle.pending === 0 && idle.ok === null && idle.lastSyncedAt === null && idle.lastError === null);
+  await d.repo.create({ title: 'a' });
+  const doomed = await d.repo.create({ title: 'b' });
+  await d.repo.remove(doomed.id);
+  check('getStatus counts un-synced records, deletion markers included', (await d.sync.getStatus()).pending === 2);
+
+  const run = await d.sync.sync();
+  check('a run emits run-start then run-end, and a throwing listener does not break sync', run.ok === true && events.join() === 'run-start,run-end');
+  check('listeners see the service as active during the run, and it is idle afterwards', activeDuringRun === true && d.sync.active === false);
+  const done = await d.sync.getStatus();
+  check('getStatus after a good run: nothing pending, ok, lastSyncedAt set', done.pending === 0 && done.ok === true && typeof done.lastSyncedAt === 'number' && done.running === false);
+
+  off();
+  await d.sync.sync();
+  check('after unsubscribing a listener hears nothing more', events.join() === 'run-start,run-end');
+
+  const failing = device('st2', { push: async () => { throw new Error('boom'); } });
+  await failing.repo.create({ title: 'x' });
+  await failing.sync.sync();
+  const bad = await failing.sync.getStatus();
+  check('getStatus after a failing run: still pending, not ok, never marked as synced, cause kept', bad.pending === 1 && bad.ok === false && bad.lastSyncedAt === null && bad.lastError?.message === 'boom');
+  failing.sync.dispose();
+  check('dispose() drops every listener', failing.sync.listeners.size === 0);
+}
+{
+  const shared = new MemorySyncAdapter();
+  const a = device('st-a', shared);
+  const b = device('st-b', shared);
+  const seen = [];
+  b.sync.subscribe((e) => { if (e.type === 'pulled') seen.push(e.changed); });
+  await a.repo.create({ title: 'from A' });
+  await a.sync.sync();
+  await b.sync.sync({ pull: true });
+  check('a pull that stores records emits "pulled" with the collections that changed', seen.length === 1 && seen[0].exerciseHistory === 1);
+  await b.sync.sync({ pull: true });
+  check('a pull that stores nothing emits no "pulled" event', seen.length === 1);
+}
+
 if (failures.length) {
-  console.error(`Phase 7 PACE 1-3 sync FAILED (${failures.length} of ${passed + failures.length}):`);
+  console.error(`Phase 7 PACE 1-4 sync FAILED (${failures.length} of ${passed + failures.length}):`);
   for (const f of failures) console.error(` - ${f}`);
   process.exit(1);
 } else {
-  console.log(`Phase 7 PACE 1-3 sync OK (${passed} checks)`);
+  console.log(`Phase 7 PACE 1-4 sync OK (${passed} checks)`);
 }

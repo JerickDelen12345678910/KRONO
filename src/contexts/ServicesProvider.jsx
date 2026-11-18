@@ -55,6 +55,12 @@ export function ServicesProvider({ children }) {
     if (online) services?.sync.sync({ pull: true });
   }, [online, services]);
 
+  // The UI shows only "Waiting" for a sync that keeps failing (e.g. rules rejecting a write), so say why in the console.
+  // Offline failures are expected and stay quiet.
+  useEffect(() => services?.sync.subscribe((event) => {
+    if (event.type === 'run-end' && !event.result.ok && navigator.onLine) console.warn('[sync] a run did not finish:', services.sync.lastError);
+  }), [services]);
+
   if (uid && !services) return <div className="auth-loading" role="status">Loading…</div>;
   return <ServicesContext.Provider value={services}>{children}</ServicesContext.Provider>;
 }

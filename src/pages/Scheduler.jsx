@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Route, Routes, useNavigate, useSearchParams } from 'react-router-dom';
 import { useServices } from '../hooks/useServices';
+import { useRemoteChanges } from '../hooks/useRemoteChanges';
 import { CATEGORIES, CATEGORY_COLOR, OCCURRENCE_STATUS } from '../models/constants.js';
 import { addDays, isDate, toLocalDate } from '../models/common.js';
 import { dateOf, findOverlaps, formatRange, timeOf, to12h, weekDates } from '../lib/timeline.js';
@@ -32,6 +33,8 @@ const statusWord = (status) => (status === DONE ? 'Done' : status === SKIPPED ? 
 const rowState = (status) => (status === DONE ? ' done' : status === SKIPPED ? ' skipped' : '');
 const HISTORY_DAYS = 30;
 const HISTORY_LIMIT = 10;
+// What the Scheduler shows is built from these collections (activity.list also covers workouts and trips): re-read when another device's changes arrive.
+const REMOTE_COLLECTIONS = ['schedules', 'occurrences', 'workouts', 'destinations'];
 
 function SchedulerHome() {
   const navigate = useNavigate();
@@ -45,6 +48,7 @@ function SchedulerHome() {
   const [data, setData] = useState({ items: [], defs: [], history: [], loading: true, error: '' });
   const [busy, setBusy] = useState(false);
   const [reload, setReload] = useState(0);   // bumped after a status change to re-read the data
+  useRemoteChanges(REMOTE_COLLECTIONS, () => setReload((n) => n + 1));   // ...and when a sync brings in changes from another device
 
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 60000);
