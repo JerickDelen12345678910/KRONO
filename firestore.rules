@@ -11,9 +11,11 @@ service cloud.firestore {
 
     // Every synced record carries its own id, an ISO `updatedAt`, an integer `version` and a soft-delete flag,
     // and its document id must equal record.id (so a retry can only ever overwrite itself, never duplicate).
+    // `syncedAt` must be the SERVER's write time (the client sends serverTimestamp()): pulls follow it, so a client
+    // must not be able to back-date it and slip a change past devices that already pulled.
     function isValidRecord(id) {
       let d = request.resource.data;
-      return d.id == id && d.updatedAt is string && d.version is int && d.deleted is bool;
+      return d.id == id && d.updatedAt is string && d.version is int && d.deleted is bool && d.syncedAt == request.time;
     }
 
     // Each user can only touch their own profile and their own synced collections beneath it.

@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
-import { doc, runTransaction } from 'firebase/firestore';
+import { doc, runTransaction, serverTimestamp, collection, query, where, orderBy, getDocs } from 'firebase/firestore';
 import { useAuth } from './AuthContext';
 import { ServicesContext } from './ServicesContext';
-import { createRepositories, createMemoryStore, createIndexedDBAdapterFactory, closeUserDB } from '../repositories/index.js';
+import { createRepositories, createMemoryStore, createIndexedDBAdapterFactory, openUserDB, closeUserDB } from '../repositories/index.js';
 import { createServices } from '../services/index.js';
 import { seedDemoData } from '../services/demoSeed.js';
 import { createDefaultReminderAdapter } from '../reminders/index.js';
 import { loadReminderSettings, saveReminderSettings } from '../lib/reminderSettingsStorage.js';
-import { createDefaultSyncAdapter } from '../sync/index.js';
+import { createDefaultSyncAdapter, MemoryCursorStore, IndexedDBCursorStore } from '../sync/index.js';
 import { db, isFirebaseConfigured } from '../lib/firebase';
 
 // Demo mode's data is throwaway, so it stays in one shared in-memory store for the app's lifetime (never persisted).
@@ -30,8 +30,14 @@ export function ServicesProvider({ children }) {
       reminderAdapter: createDefaultReminderAdapter(),
       reminderSettings: loadReminderSettings(),
       onReminderSettingsChange: saveReminderSettings,
-      // Phase 7 PACE 2: real signed-in users sync to Firestore (users/{uid}/…); demo mode keeps the in-memory fake.
-      syncAdapter: createDefaultSyncAdapter({ userId: uid, demo, firestore: isFirebaseConfigured && db ? { db, doc, runTransaction } : null }),
+      // Phase 7: real signed-in users sync to Firestore (users/{uid}/…) and remember their pull position in their own
+      // IndexedDB database; demo mode keeps the in-memory fake and a throwaway in-memory cursor.
+      syncAdapter: createDefaultSyncAdapter({
+        userId: uid,
+        demo,
+        firestore: isFirebaseConfigured && db ? { db, doc, runTransaction, serverTimestamp, collection, query, where, orderBy, getDocs } : null,
+      }),
+      syncCursors: demo ? new MemoryCursorStore() : new IndexedDBCursorStore(openUserDB(uid)),
     });
     (demo ? seedDemoData(services) : Promise.resolve())
       .then(() => services.reminders.sync())   // seeded demo data must get its reminders too (idempotent, never rejects)
@@ -43,9 +49,10 @@ export function ServicesProvider({ children }) {
 
   const services = ready.uid === uid ? ready.services : null;
 
-  // Coming back online is one of sync's triggers (alongside its own periodic sweep and anything that calls services.sync.sync() directly).
+  // Coming back online (and signing in, which is the first time `services` exists) is one of sync's triggers, alongside its own
+  // periodic sweep and anything that calls services.sync.sync() directly. It forces a pull; the periodic sweep only pulls every few minutes.
   useEffect(() => {
-    if (online) services?.sync.sync();
+    if (online) services?.sync.sync({ pull: true });
   }, [online, services]);
 
   if (uid && !services) return <div className="auth-loading" role="status">Loading…</div>;
