@@ -6,7 +6,11 @@
 // A draft keeps every number as the TEXT the user typed (so a half-typed value is never rewritten under their
 // fingers); draftToInput() turns it into numbers, and a value that is not a whole number becomes null, which
 // validateWorkout() (src/models/workout.js) and itemErrors() below both reject.
-import { itemFromExercise, setsLabel } from './fitness.js';
+//
+// PACE 3c: a workout can be planned on the calendar by linking it to ONE of the user's schedules (`workout.scheduleId`,
+// the link src/lib/fitness.js `plannedWorkouts` reads). One schedule plans one workout, so linking a schedule that
+// already plans another workout asks first, and replaces it (see competingWorkouts / rivalsToUnlink).
+import { WEEKDAY_NAMES, itemFromExercise, setsLabel } from './fitness.js';
 import { createWorkout, createWorkoutItem, validateWorkout } from '../models/workout.js';
 
 export const LIMITS = Object.freeze({ sets: [1, 50], reps: [1, 1000], seconds: [1, 7200], rest: [0, 3600] });   // sets/rest match validateWorkout
@@ -34,13 +38,21 @@ function draftItem(item, key) {
 
 /** A new workout; with `exercise` it starts with that library exercise (the "Add to workout" action). */
 export function emptyDraft({ exercise = null } = {}) {
-  const base = { name: '', category: exercise?.category ?? 'Strength', notes: '', items: [], nextKey: 1 };
+  const base = { name: '', category: exercise?.category ?? 'Strength', notes: '', scheduleId: '', items: [], nextKey: 1 };
   return exercise ? addExercise(base, exercise) : base;
 }
 
-export function draftFromWorkout(w) {
+/** True when the workout points at a schedule that is not in `schedules` any more (deleted). */
+export const isLinkLost = (w, schedules) => Boolean(w.scheduleId) && !schedules.some((s) => s.id === w.scheduleId);
+
+/**
+ * `schedules` (the user's current schedules) is optional: when given, a link to a schedule that no longer exists is dropped from
+ * the draft ('' = not planned), so saving cleans it up instead of keeping a dead link.
+ */
+export function draftFromWorkout(w, schedules = null) {
   const items = (w.items ?? []).map((item, i) => draftItem(item, `i${i + 1}`));
-  return { name: w.name ?? '', category: w.category, notes: w.notes ?? '', items, nextKey: items.length + 1 };
+  const scheduleId = w.scheduleId && !(schedules && isLinkLost(w, schedules)) ? w.scheduleId : '';
+  return { name: w.name ?? '', category: w.category, notes: w.notes ?? '', scheduleId, items, nextKey: items.length + 1 };
 }
 
 // ---- editing the exercise list (each returns a NEW draft; an impossible move returns the same one) ----
@@ -61,12 +73,13 @@ export function moveItem(draft, key, delta) {
 }
 
 // ---- saving ----
-/** What WorkoutService.update takes: name, category, notes and the items. `scheduleId` is never sent, so a link to the calendar stays. */
+/** What WorkoutService.update takes: name, category, notes, the calendar link (`scheduleId`, null = not planned) and the items. */
 export function draftToInput(draft) {
   return {
     name: draft.name.trim(),
     category: draft.category,
     notes: draft.notes.trim(),
+    scheduleId: draft.scheduleId || null,
     items: draft.items.map((i) => createWorkoutItem({
       exerciseId: i.exerciseId, name: i.name,
       sets: toInt(i.sets),
@@ -106,6 +119,54 @@ export function validateDraft(draft) {
 /** The items of an existing workout plus one more library exercise (for "Add to workout" on the exercise detail). */
 export const itemsWithExercise = (workout, exercise) => [...(workout.items ?? []).map((i) => ({ ...i })), itemFromExercise(exercise)];
 
+// ---- the calendar link (PACE 3c) ----
+const DAY_ABBR = WEEKDAY_NAMES.map((n) => n.slice(0, 3));
+const shortDate = (date) => {
+  const [y, m, d] = date.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+};
+
+/** When a schedule happens, short: "Mon, Wed" · "Every day" · "Every 3 days" · "Every 2 weeks · Tue" · "Nov 19" (one time). */
+export function scheduleWhen(s) {
+  const r = s.repeat;
+  if (!r || r.type === 'none') return s.date ? shortDate(s.date) : '';
+  if (r.type === 'daily') return r.interval > 1 ? `Every ${r.interval} days` : 'Every day';
+  if (r.type === 'custom') return `Every ${r.interval} days`;
+  const days = [...(r.daysOfWeek ?? [])].sort((a, b) => a - b).map((d) => DAY_ABBR[d]).filter(Boolean).join(', ') || 'Weekly';
+  return r.interval > 1 ? `Every ${r.interval} weeks · ${days}` : days;
+}
+
+/** "Gym · Mon, Wed · 12:30 PM". `to12h` (lib/timeline.js) is passed in so this file stays free of the UI helpers. */
+export const scheduleLabel = (s, to12h = (t) => t) => [s.title || 'Untitled schedule', scheduleWhen(s), s.startTime ? to12h(s.startTime) : ''].filter(Boolean).join(' · ');
+
+/** The options of the "Schedule" select: '' = not planned, then one per schedule. */
+export const scheduleOptions = (schedules, to12h) => [
+  { value: '', label: 'Not planned on the calendar' },
+  ...schedules.map((s) => ({ value: s.id, label: scheduleLabel(s, to12h) })),
+];
+
+/**
+ * The OTHER workouts that `plannedWorkouts` already plans on this schedule: those whose `scheduleId` is it, or (only when no workout
+ * claims it, exactly like plannedWorkouts) the one the schedule's own `linkedWorkoutId` names. `currentId` = the workout being saved.
+ */
+export function competingWorkouts({ scheduleId, workouts, schedules, currentId = null }) {
+  if (!scheduleId) return [];
+  const claimed = workouts.filter((w) => w.scheduleId === scheduleId);
+  if (claimed.length > 0) return claimed.filter((w) => w.id !== currentId);
+  const linked = schedules.find((s) => s.id === scheduleId)?.linkedWorkoutId;
+  return linked && linked !== currentId ? workouts.filter((w) => w.id === linked) : [];
+}
+
+/** Of the rivals, the ones to unlink (set scheduleId to null). A rival that only the schedule's linkedWorkoutId names is overridden by ours: workout.scheduleId wins. */
+export const rivalsToUnlink = (rivals, scheduleId) => rivals.filter((w) => w.scheduleId === scheduleId);
+
+/** The confirmation before a new workout takes over a schedule. */
+export function replaceMessage(rivals) {
+  const one = rivals.length === 1;
+  const names = rivals.map((w) => `“${w.name || 'Untitled workout'}”`).join(' and ');
+  return `${names} ${one ? 'is' : 'are'} already planned on this schedule, and a schedule plans one workout. Replace ${one ? 'it' : 'them'} with this workout? ${one ? 'It' : 'They'} will stay in My workouts but leave the calendar.`;
+}
+
 // ---- texts ----
 export const exerciseCountLabel = (n) => `${n} ${n === 1 ? 'exercise' : 'exercises'}`;
 
@@ -119,12 +180,13 @@ export function pickerResults(exercises, limit = PICKER_LIMIT) {
   return { rows: exercises.slice(0, limit).map(pickerRow), more: Math.max(0, exercises.length - limit) };
 }
 
-/** One "My workouts" row: "4 ex" | name | "Strength · Scheduled". */
-export function workoutRow(w) {
+/** One "My workouts" row: "4 ex" | name | "Strength · Scheduled". With `schedules`, a link to a deleted schedule does not count as Scheduled. */
+export function workoutRow(w, schedules = null) {
   const n = w.items?.length ?? 0;
+  const scheduled = Boolean(w.scheduleId) && !(schedules && isLinkLost(w, schedules));
   return {
     id: w.id, title: w.name || 'Untitled workout', amount: `${n} ex`,
-    subtitle: [w.category, w.scheduleId ? 'Scheduled' : null].filter(Boolean).join(' · '),
+    subtitle: [w.category, scheduled ? 'Scheduled' : null].filter(Boolean).join(' · '),
   };
 }
 

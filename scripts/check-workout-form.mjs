@@ -1,10 +1,11 @@
-// Phase 9 PACE 3b — checks for src/lib/workoutForm.js (pure; runs in plain Node, against the REAL exercise library).
+// Phase 9 PACE 3b + 3c — checks for src/lib/workoutForm.js (pure; runs in plain Node, against the REAL exercise library).
 import assert from 'node:assert/strict';
 import { EXERCISE_LIBRARY, getExerciseById } from '../src/lib/exerciseLibrary.js';
 import { createWorkout, createWorkoutItem, validateWorkout } from '../src/models/workout.js';
 import {
-  LIMITS, PICKER_LIMIT, addExercise, deleteMessage, draftFromWorkout, draftToInput, draftToNewWorkout, emptyDraft, exerciseCountLabel,
-  itemErrors, itemsWithExercise, moveItem, pickerResults, pickerRow, removeItem, updateItem, validateDraft, workoutRow,
+  LIMITS, PICKER_LIMIT, addExercise, competingWorkouts, deleteMessage, draftFromWorkout, draftToInput, draftToNewWorkout, emptyDraft, exerciseCountLabel,
+  isLinkLost, itemErrors, itemsWithExercise, moveItem, pickerResults, pickerRow, removeItem, replaceMessage, rivalsToUnlink, scheduleLabel,
+  scheduleOptions, scheduleWhen, updateItem, validateDraft, workoutRow,
 } from '../src/lib/workoutForm.js';
 
 let n = 0;
@@ -18,7 +19,7 @@ ok(reps && hold, 'the library has a reps exercise and a timed exercise');
 
 // ---- emptyDraft ----
 let d = emptyDraft();
-eq(d, { name: '', category: 'Strength', notes: '', items: [], nextKey: 1 }, 'empty draft');
+eq(d, { name: '', category: 'Strength', notes: '', scheduleId: '', items: [], nextKey: 1 }, 'empty draft');
 d = emptyDraft({ exercise: reps });
 eq(d.items.length, 1, 'a draft started from an exercise has it');
 eq(d.category, reps.category, 'and takes its category');
@@ -60,7 +61,7 @@ let input = draftToInput(d);
 eq([input.name, input.notes, input.category], ['Leg day', 'slow', reps.category], 'trimmed text');
 eq(input.items[0].reps, reps.suggestedReps, 'reps is a number');
 eq(input.items[0].durationSec, null, 'a reps item has no duration');
-ok(!('scheduleId' in input), 'scheduleId is never sent');
+eq(input.scheduleId, null, 'not planned by default: scheduleId is null');
 input = draftToInput(updateItem(d, d.items[0].key, { mode: 'time', durationSec: '40' }));
 eq([input.items[0].reps, input.items[0].durationSec], [null, 40], 'switching to seconds sends the duration only');
 input = draftToInput(updateItem(d, d.items[0].key, { sets: '3.5', restSec: '-1', reps: 'abc' }));
@@ -111,6 +112,10 @@ eq(back.items.map((i) => [i.name, i.mode, i.exerciseId]), [['Push-up', 'reps', n
 eq(draftToInput(back).items, sample.items, 'load -> save gives the same items');
 ok(validateDraft(back).valid, 'a loaded workout is valid');
 eq(back.nextKey, 3, 'next key follows the loaded items');
+eq(back.scheduleId, 'sample-gym', 'the calendar link loads');
+eq(draftToInput(back).scheduleId, 'sample-gym', 'and survives a save');
+eq(draftToInput({ ...back, scheduleId: '' }).scheduleId, null, 'unlinking sends null');
+ok(validateDraft({ ...back, scheduleId: '' }).valid, 'a workout needs no schedule');
 eq(new Set(addExercise(back, reps).items.map((i) => i.key)).size, 3, 'new key does not clash');
 eq(draftFromWorkout({ name: 'Old', category: 'Core' }).items, [], 'a record without items does not crash');
 
@@ -144,4 +149,58 @@ ok(deleteMessage(sample).includes('schedule stays'), 'and the schedule when link
 ok(!deleteMessage({ name: 'X' }).includes('schedule stays'), 'not when unlinked');
 ok(getExerciseById(reps.id)?.id === reps.id, 'library lookup works');
 
-console.log(`Phase 9 PACE 3b workout form OK (${n} checks)`);
+// ---- PACE 3c: the calendar link ----
+const tpl = { startTime: '12:30', endTime: '13:15', date: null, linkedWorkoutId: null };
+const rule = (type, extra = {}) => ({ type, interval: 1, daysOfWeek: [], ...extra });
+const gym = { ...tpl, id: 'sample-gym', title: 'Gym', repeat: rule('selectedDays', { daysOfWeek: [3, 1] }) };
+const once = { ...tpl, id: 's-once', title: 'Run', date: '2026-11-19', startTime: '06:00', repeat: rule('none') };
+const daily = { ...tpl, id: 's-daily', title: 'Stretch', repeat: rule('daily') };
+const every3 = { ...tpl, id: 's-3', title: 'Swim', repeat: rule('custom', { interval: 3 }) };
+const biweekly = { ...tpl, id: 's-2w', title: 'Yoga', repeat: rule('weekly', { interval: 2, daysOfWeek: [2] }) };
+const h12 = (t) => { const [h, m] = t.split(':').map(Number); return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`; };
+eq(scheduleWhen(gym), 'Mon, Wed', 'selected days are sorted and abbreviated');
+eq(scheduleWhen(once), 'Nov 19', 'a one-time schedule shows its date');
+eq(scheduleWhen(daily), 'Every day', 'daily');
+eq(scheduleWhen(every3), 'Every 3 days', 'custom interval');
+eq(scheduleWhen(biweekly), 'Every 2 weeks · Tue', 'every other week');
+eq(scheduleWhen({ ...gym, repeat: rule('weekly') }), 'Weekly', 'weekly with no days listed');
+eq(scheduleLabel(gym, h12), 'Gym · Mon, Wed · 12:30 PM', 'label with 12-hour time');
+eq(scheduleLabel({ ...gym, title: '' }), 'Untitled schedule · Mon, Wed · 12:30', 'label without a title or a formatter');
+const opts = scheduleOptions([gym, once], h12);
+eq(opts.map((o) => o.value), ['', 'sample-gym', 's-once'], 'options: not planned first, then each schedule');
+eq(opts[0].label, 'Not planned on the calendar', 'first option text');
+eq(scheduleOptions([], h12).length, 1, 'no schedules: only "not planned"');
+
+const wa = createWorkout({ id: 'wa', name: 'Upper body', scheduleId: 'sample-gym' });
+const wb = createWorkout({ id: 'wb', name: 'Core', scheduleId: null });
+const wc = createWorkout({ id: 'wc', name: 'Run intervals', scheduleId: 's-once' });
+const all3 = [wa, wb, wc];
+eq(competingWorkouts({ scheduleId: 'sample-gym', workouts: all3, schedules: [gym, once], currentId: 'wb' }).map((w) => w.id), ['wa'], 'another workout holds the schedule');
+eq(competingWorkouts({ scheduleId: 'sample-gym', workouts: all3, schedules: [gym, once], currentId: 'wa' }), [], 'the workout itself is not a rival');
+eq(competingWorkouts({ scheduleId: 'sample-gym', workouts: all3, schedules: [gym, once], currentId: null }).map((w) => w.id), ['wa'], 'a NEW workout meets the holder');
+eq(competingWorkouts({ scheduleId: 's-daily', workouts: all3, schedules: [daily], currentId: 'wb' }), [], 'a free schedule has no rival');
+eq(competingWorkouts({ scheduleId: '', workouts: all3, schedules: [gym], currentId: 'wb' }), [], 'no schedule chosen: no rival');
+// a schedule's own linkedWorkoutId counts only when no workout claims it (plannedWorkouts: workout.scheduleId wins)
+const linkedGym = { ...gym, linkedWorkoutId: 'wb' };
+eq(competingWorkouts({ scheduleId: 'sample-gym', workouts: [wb, wc], schedules: [linkedGym], currentId: 'wa' }).map((w) => w.id), ['wb'], 'linkedWorkoutId-only rival');
+eq(competingWorkouts({ scheduleId: 'sample-gym', workouts: [wb, wc], schedules: [linkedGym], currentId: 'wb' }), [], 'the linked workout itself is not a rival');
+eq(competingWorkouts({ scheduleId: 'sample-gym', workouts: all3, schedules: [linkedGym], currentId: 'wc' }).map((w) => w.id), ['wa'], 'a claiming workout wins over linkedWorkoutId (only it is a rival)');
+eq(rivalsToUnlink([wa, wb], 'sample-gym').map((w) => w.id), ['wa'], 'only claimers are unlinked');
+eq(rivalsToUnlink([wb], 'sample-gym'), [], 'a linkedWorkoutId-only rival is not rewritten');
+ok(replaceMessage([wa]).startsWith('“Upper body” is already planned on this schedule'), 'replace message, one rival');
+ok(replaceMessage([wa]).includes('Replace it') && replaceMessage([wa]).includes('stay in My workouts'), 'and what happens to it');
+ok(replaceMessage([wa, wc]).includes('“Upper body” and “Run intervals” are already planned') && replaceMessage([wa, wc]).includes('Replace them'), 'two rivals');
+ok(replaceMessage([createWorkout({ id: 'x', name: '' })]).includes('“Untitled workout”'), 'unnamed rival');
+
+ok(!isLinkLost(wa, [gym]) && isLinkLost(wa, [once]) && !isLinkLost(wb, []), 'isLinkLost');
+eq(draftFromWorkout(wa, [gym]).scheduleId, 'sample-gym', 'link kept while the schedule exists');
+eq(draftFromWorkout(wa, [once]).scheduleId, '', 'a link to a deleted schedule is dropped from the draft');
+eq(draftFromWorkout(wa).scheduleId, 'sample-gym', 'without a schedule list the link is kept as is');
+eq(draftFromWorkout(wb, [gym]).scheduleId, '', 'unlinked workout');
+eq(workoutRow(wa, [gym]).subtitle, 'Strength · Scheduled', 'row: schedule exists');
+eq(workoutRow(wa, [once]).subtitle, 'Strength', 'row: dead link is not Scheduled');
+eq(workoutRow(wa).subtitle, 'Strength · Scheduled', 'row: without a schedule list');
+const linked = draftToNewWorkout({ ...emptyDraft({ exercise: reps }), name: 'Leg day', scheduleId: 's-daily' });
+ok(linked.scheduleId === 's-daily' && validateWorkout(linked).valid, 'a new record can start linked');
+
+console.log(`Phase 9 PACE 3b + 3c workout form OK (${n} checks)`);
