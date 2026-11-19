@@ -8,6 +8,8 @@ import {
   COR_STEPS, SAMPLE_COR, corRange, createLabel, dateLabel, daysLabel, detailLine, formatSize, initialSelection,
   invalidSummary, needsReview, prepareCreate, reviewSummary, sampleSubjects, subjectTitle, timeRange, toggleSelection, validateCorFile,
 } from '../lib/cor.js';
+import { extractCorText, CorOcrError } from '../lib/corOcr.js';
+import { parseCorText } from '../lib/corParser.js';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { Icon } from '../components/ui/Icon';
@@ -15,17 +17,25 @@ import { NoteBanner } from '../components/ui/NoteBanner';
 import { Pill } from '../components/ui/Pill';
 import { Stepper } from '../components/ui/Stepper';
 
-// UI only: nothing is uploaded or read here (real OCR is Phase 8). The Review step shows sample classes.
+// Phase 8 PACE 2: real OCR (Tesseract.js) + PDF page rendering (pdfjs-dist), City College layout
+// only. The file is read and OCR'd entirely in the browser — it is never uploaded anywhere here.
+// Phase 8 PACE 3: the school year / semester printed in the COR header (when there is one) becomes the period label.
 export function CorUpload() {
   const navigate = useNavigate();
   const { schedule } = useServices();
   const fileInput = useRef(null);
-  const [subjects] = useState(sampleSubjects);
+  const requestId = useRef(0);   // lets a newer file pick ignore a still-running older OCR result
   const [today] = useState(() => toLocalDate());
   const [step, setStep] = useState(0);
-  const [file, setFile] = useState(null);          // { name, size } only: the file itself is never kept
+  const [file, setFile] = useState(null);          // { name, size } only: for display
   const [fileError, setFileError] = useState('');
-  const [picked, setPicked] = useState(() => initialSelection(subjects));
+  const [subjects, setSubjects] = useState([]);
+  const [unparsedRows, setUnparsedRows] = useState([]);
+  const [source, setSource] = useState(null);       // 'sample' | 'ocr' — which period label to show
+  const [period, setPeriod] = useState(null);       // { label, ... } read from a real COR header, or null
+  const [picked, setPicked] = useState([]);
+  const [ocrBusy, setOcrBusy] = useState(false);
+  const [ocrError, setOcrError] = useState('');
   const [created, setCreated] = useState([]);      // subject ids already saved (a retry never duplicates them)
   const [focus, setFocus] = useState(null);        // earliest date to show in the Scheduler afterwards
   const [busy, setBusy] = useState(false);
@@ -36,6 +46,45 @@ export function CorUpload() {
   const summary = reviewSummary(subjects);
   const chosen = subjects.filter((s) => picked.includes(s.id));
   const remaining = chosen.filter((s) => !created.includes(s.id)).length;
+  const periodLabel = source === 'sample' ? SAMPLE_COR.period : (period?.label ?? null);
+
+  const resetResults = () => {
+    setSubjects([]);
+    setUnparsedRows([]);
+    setPeriod(null);
+    setPicked([]);
+    setCreated([]);
+    setFocus(null);
+  };
+
+  const runOcr = async (sourceFile) => {
+    const id = ++requestId.current;
+    setOcrBusy(true);
+    setOcrError('');
+    resetResults();
+    try {
+      const text = await extractCorText(sourceFile);
+      if (requestId.current !== id) return;   // a newer file was chosen while this one was reading
+      const result = parseCorText(text);
+      if (result.subjects.length === 0) {
+        setOcrError(result.layout
+          ? "Couldn't find any classes in this file. Try a clearer scan or a different file."
+          : "Couldn't recognize this COR. Try a clearer scan, or use the sample COR to try the flow.");
+        setUnparsedRows(result.unparsedRows);
+        return;
+      }
+      setSubjects(result.subjects);
+      setPicked(initialSelection(result.subjects));
+      setUnparsedRows(result.unparsedRows);
+      setPeriod(result.period);
+      setSource('ocr');
+    } catch (e) {
+      if (requestId.current !== id) return;
+      setOcrError(e instanceof CorOcrError ? e.message : handleError(e, 'cor-ocr'));
+    } finally {
+      if (requestId.current === id) setOcrBusy(false);
+    }
+  };
 
   const onFile = (e) => {
     const f = e.target.files?.[0];
@@ -49,11 +98,20 @@ export function CorUpload() {
     }
     setFileError('');
     setFile({ name: f.name, size: f.size });
+    runOcr(f);
   };
 
   const chooseSample = () => {
+    requestId.current += 1;   // cancels any OCR still in flight
     setFileError('');
+    setOcrError('');
+    setOcrBusy(false);
     setFile({ name: SAMPLE_COR.fileName, size: SAMPLE_COR.fileSize });
+    resetResults();
+    const subs = sampleSubjects();
+    setSubjects(subs);
+    setPicked(initialSelection(subs));
+    setSource('sample');
   };
 
   // Saves one schedule per ticked class, only through the service (it generates the weekly occurrences).
@@ -88,7 +146,7 @@ export function CorUpload() {
   };
 
   const privacy = (
-    <NoteBanner variant="info">Your COR may contain personal details. It will stay private to your account, and you will be able to delete it at any time.</NoteBanner>
+    <NoteBanner variant="info">Your COR may contain personal details. It is read on this device only — nothing is uploaded — and you can delete it at any time.</NoteBanner>
   );
 
   const fileCard = file && (
@@ -97,7 +155,7 @@ export function CorUpload() {
         <span className="cor-file-ico"><Icon name="up" size={18} aria-hidden="true" /></span>
         <div>
           <b>{file.name}</b>
-          <small>{`${formatSize(file.size)} · nothing is uploaded yet`}</small>
+          <small>{formatSize(file.size)}</small>
         </div>
       </div>
     </Card>
@@ -105,23 +163,28 @@ export function CorUpload() {
 
   const uploadCard = (
     <Card variant="pri" header={<>Upload your COR <span>JPG, PNG or PDF</span></>}>
-      <p className="empty-hint">Nothing is uploaded or read yet: reading the text (OCR) arrives in a later phase. For now, the next steps use sample classes so you can try the flow.</p>
-      <input ref={fileInput} type="file" accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf" hidden onChange={onFile} />
+      <p className="empty-hint">
+        {ocrBusy
+          ? 'Reading your file… this can take a few seconds.'
+          : 'Only the City College class schedule layout is recognized right now. The first read needs an internet connection.'}
+      </p>
+      <input ref={fileInput} type="file" accept=".jpg,.jpeg,.png,.pdf,image/jpeg,image/png,application/pdf" hidden disabled={ocrBusy} onChange={onFile} />
       {fileError && <NoteBanner className="mb-3">{fileError}</NoteBanner>}
+      {ocrError && <NoteBanner className="mb-3">{ocrError}</NoteBanner>}
       <div className="cor-actions">
-        <Button variant="secondary" leftIcon="up" onClick={() => fileInput.current?.click()}>Choose file</Button>
-        <Button variant="secondary" onClick={chooseSample}>Use sample COR</Button>
+        <Button variant="secondary" leftIcon="up" disabled={ocrBusy} onClick={() => fileInput.current?.click()}>Choose file</Button>
+        <Button variant="secondary" disabled={ocrBusy} onClick={chooseSample}>Use sample COR</Button>
       </div>
       <div className="cor-actions">
-        <Button variant="secondary" leftIcon="left" onClick={() => navigate('/scheduler')}>Back to Scheduler</Button>
-        <Button disabled={!file} onClick={() => setStep(1)}>Continue</Button>
+        <Button variant="secondary" leftIcon="left" disabled={ocrBusy} onClick={() => navigate('/scheduler')}>Back to Scheduler</Button>
+        <Button disabled={!file || ocrBusy || subjects.length === 0} onClick={() => setStep(1)}>{ocrBusy ? 'Reading…' : 'Continue'}</Button>
       </div>
     </Card>
   );
 
   const reviewCard = (
-    <Card variant="pri" header={<>Review extracted classes <span>{SAMPLE_COR.period}</span></>}>
-      <p className="empty-hint">These are sample classes. Tick the ones to create; classes that need review start unticked.</p>
+    <Card variant="pri" header={<>Review extracted classes{periodLabel && <span>{` ${periodLabel}`}</span>}</>}>
+      <p className="empty-hint">Tick the classes to create; classes that need review start unticked.</p>
       <div className="chips">
         <Pill variant="ok">{`${summary.ready} ready`}</Pill>
         {summary.needsReview > 0 && <Pill variant="warn">{`${summary.needsReview} needs review`}</Pill>}
@@ -143,6 +206,22 @@ export function CorUpload() {
           );
         })}
       </div>
+      {unparsedRows.length > 0 && (
+        <>
+          <p className="empty-hint">{`${unparsedRows.length} ${unparsedRows.length === 1 ? 'row' : 'rows'} couldn't be read automatically — add ${unparsedRows.length === 1 ? 'it' : 'them'} to the Scheduler yourself.`}</p>
+          <div className="cor-list">
+            {unparsedRows.map((r) => (
+              <div key={`unparsed-${r.row}`} className="cor-row plain warn">
+                <span className="cor-main">
+                  <b>{`Row ${r.row}`}</b>
+                  <small>{r.text}</small>
+                </span>
+                <Pill variant="warn">Couldn't read</Pill>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
       <div className="cor-actions">
         <Button variant="secondary" leftIcon="left" onClick={() => setStep(0)}>Back</Button>
         <Button disabled={picked.length === 0} onClick={() => { setError(''); setStep(2); }}>{`Continue with ${picked.length}`}</Button>
@@ -151,7 +230,7 @@ export function CorUpload() {
   );
 
   const createCard = (
-    <Card variant="pri" header={<>Create class schedules <span>{SAMPLE_COR.period}</span></>}>
+    <Card variant="pri" header={<>Create class schedules{periodLabel && <span>{` ${periodLabel}`}</span>}</>}>
       <p className="empty-hint">{`Each class repeats weekly on its days, from ${dateLabel(range.startDate)} to ${dateLabel(range.endDate)}. Reminders use your default settings.`}</p>
       <div className="cor-list">
         {chosen.map((s) => (
@@ -174,7 +253,7 @@ export function CorUpload() {
   );
 
   const doneCard = (
-    <Card variant="pri" header={<>Class schedules created <span>{SAMPLE_COR.period}</span></>}>
+    <Card variant="pri" header={<>Class schedules created{periodLabel && <span>{` ${periodLabel}`}</span>}</>}>
       <div className="chips">
         <Pill variant="ok">{`${created.length} ${created.length === 1 ? 'schedule' : 'schedules'} created`}</Pill>
       </div>
@@ -197,4 +276,4 @@ export function CorUpload() {
       </div>
     </div>
   );
-}   
+}

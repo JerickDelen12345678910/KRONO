@@ -16,6 +16,14 @@
 // and a lab slot) comes back as two separate session candidates sharing the same `code`, rather
 // than forced into one — the existing schedule model is one time-block per subject, so this is
 // the accurate fit with no changes needed elsewhere.
+//
+// Phase 8 PACE 3: parseCorText also returns `period` — the school year and/or semester read from
+// the page header (the lines above the first table row), or null when the header has neither.
+// Nothing is guessed: a school year only counts when it is two consecutive years (2026-2027),
+// and a semester only when its words are actually printed.
+//
+// Phase 8 PACE 2b: a row's day groups and room are found by shape, so the parser reads the same result
+// whether the text came column by column (PDF text layer order) or line by line (visual / OCR order).
 
 const DAY_INDEX = {
   SU: 0, SUN: 0,
@@ -36,6 +44,12 @@ const TIME_RE = /(\d{1,2}):(\d{2})\s*(AM|PM)\s*-\s*(\d{1,2}):(\d{2})\s*(AM|PM)/g
 // time-range tail is found, which self-corrects past any shorter but wrong split.
 const ANCHOR_RE = /^(.*?)\s+(\d{1,2})\s+(\d{1,2})\s+(\d{1,2})\s+(\d{1,2})\s+(\d{1,2}:\d{2}\s*(?:AM|PM).*)$/i;
 const ROW_SECTION_RE = /^([A-Z]{2,10}\s+\d{1,3}-\d{1,2}(?:-[A-Z]{1,2})?)\b/;
+// What a day-group token looks like, so day groups can be told apart from room words by SHAPE rather than
+// by position: one known abbreviation ("T", "TH"), or slash-joined letters ("TH/T", "W/M/F"). A garbled
+// slash group ("TH/I") still counts as day-like, so it is flagged for review instead of leaking into the room.
+const SINGLE_DAY_RE = /^(?:SUN|MON|TUE|WED|THURS|THU|FRI|SAT|SU|TH|M|T|W|F|S)$/i;
+const SLASH_DAYS_RE = /^[A-Za-z]{1,5}(?:\/[A-Za-z]{1,5})+$/;
+const isDayLike = (token) => SINGLE_DAY_RE.test(token) || SLASH_DAYS_RE.test(token);
 
 function to24h(hour, minute, meridiem) {
   let h = Number(hour) % 12;
@@ -116,11 +130,23 @@ function parseRow(raw) {
     return { startTime, endTime, valid: endTime > startTime };
   });
 
-  const last = timeMatches[timeMatches.length - 1];
-  const tail = rest.slice(last.index + last[0].length).trim();
-  const tailTokens = tail.split(/\s+/).filter(Boolean);
-  const dayGroups = tailTokens.slice(0, times.length);
-  const roomRaw = tailTokens.slice(times.length).join(' ');
+  // Everything that is not a time range is a day group or part of a room. They are told apart by shape,
+  // not position, so the result does not depend on the order the extractor printed them in: column by
+  // column ("t1 t2 d1 d2 room", a PDF's internal text order) or line by line ("t1 d1 room t2 d2", what a
+  // reader or an OCR engine sees). Either way the i-th day group belongs to the i-th time range.
+  // OCR also sprinkles stray marks around tokens ("‘T/TH", "W/M/F_", a lone "~" or "="): marks on the edges of a
+  // token are ignored when deciding whether it is a day group, and a token that is only marks is dropped.
+  const leftover = rest.replace(TIME_RE, ' ').split(/\s+/).filter(Boolean);
+  const dayGroups = [];
+  const roomWords = [];
+  for (const token of leftover) {
+    const core = token.replace(/^[^A-Za-z0-9]+|[^A-Za-z0-9]+$/g, '');
+    if (core === '') continue;
+    if (isDayLike(core)) dayGroups.push(core);
+    else roomWords.push(token);
+  }
+  // A room that wrapped onto the next line mid-word ("KALAP-" / "GYM") is rejoined.
+  const roomRaw = roomWords.join(' ').replace(/(\w)-\s+(\w)/g, '$1$2');
   const rooms = splitRoom(roomRaw, times.length);
 
   const sessions = times.map((t, i) => {
@@ -147,12 +173,47 @@ function parseRow(raw) {
   return { sessions };
 }
 
+// ---- academic period (page header) ----
+// Only the lines ABOVE the first table row are searched, so a year-like string in a row, a room or
+// the fee/signature block can never be mistaken for the period.
+const SCHOOL_YEAR_RE = /\b(20\d{2})\s*[-–—]\s*(20\d{2})\b/g;
+const SEMESTER_PATTERNS = [
+  [/\b(?:1st|first)\s+sem(?:ester)?\b/i, '1st Sem'],
+  [/\b(?:2nd|second)\s+sem(?:ester)?\b/i, '2nd Sem'],
+  [/\bmid-?\s?year\b/i, 'Midyear'],
+  [/\bsummer\b/i, 'Summer'],
+];
+
+function headerText(text) {
+  const header = [];
+  for (const line of text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)) {
+    const rowStart = /^(\d{1,3})\s+(.*)$/.exec(line);
+    if (rowStart && ROW_SECTION_RE.test(rowStart[2])) break;
+    if (/^total\b/i.test(line) || /tuition and fees/i.test(line)) break;
+    header.push(line);
+  }
+  return header.join('\n');
+}
+
+/** Page header -> { startYear, endYear, semester, label } or null when it prints neither a school year nor a semester. */
+function parsePeriod(text) {
+  const header = headerText(text);
+  const years = [...header.matchAll(SCHOOL_YEAR_RE)].find((m) => Number(m[2]) === Number(m[1]) + 1);
+  const startYear = years ? Number(years[1]) : null;
+  const endYear = years ? Number(years[2]) : null;
+  const semester = SEMESTER_PATTERNS.find(([re]) => re.test(header))?.[1] ?? null;
+  if (startYear === null && semester === null) return null;
+  const label = [semester, startYear === null ? '' : `AY ${startYear}–${endYear}`].filter(Boolean).join(', ');
+  return { startYear, endYear, semester, label };
+}
+
 export const LAYOUTS = {
   CITY_COLLEGE: {
     id: 'CITY_COLLEGE',
     detect: (text) => SECTION_PATTERN.test(text) && TIME_PATTERN.test(text),
     parseRows: groupRows,
     parseRow,
+    parsePeriod,
   },
 };
 
@@ -166,12 +227,12 @@ export function detectLayout(text) {
 /**
  * Entry point: raw extracted/OCR text -> candidate subjects (one per weekly time-block) plus any
  * table rows that didn't match the layout's pattern at all, for the Review step to surface as-is
- * rather than guess at.
+ * rather than guess at. `period` is the school year / semester printed in the page header, or null.
  */
 export function parseCorText(text, { layoutId } = {}) {
   const id = layoutId ?? detectLayout(text);
   const layout = id && LAYOUTS[id];
-  if (!layout) return { layout: null, subjects: [], unparsedRows: [] };
+  if (!layout) return { layout: null, subjects: [], unparsedRows: [], period: null };
 
   const subjects = [];
   const unparsedRows = [];
@@ -180,5 +241,5 @@ export function parseCorText(text, { layoutId } = {}) {
     if (result.unparsed) unparsedRows.push(result.unparsed);
     else subjects.push(...result.sessions);
   }
-  return { layout: id, subjects, unparsedRows };
+  return { layout: id, subjects, unparsedRows, period: layout.parsePeriod ? layout.parsePeriod(text) : null };
 }
