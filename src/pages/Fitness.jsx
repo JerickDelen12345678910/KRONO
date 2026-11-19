@@ -100,6 +100,7 @@ export function Fitness() {
               {blocks.length > 0 && <p className="fit-note mt-3">Starting a workout is coming soon.</p>}
             </Card>
             <FilterChips options={CATEGORY_OPTIONS} value={activeCategory} onChange={setCategory} label="Workout category" />
+            <Button variant="secondary" fullWidth rightIcon="right" onClick={() => navigate('/fitness/workouts')}>My workouts</Button>
             <Button variant="secondary" fullWidth rightIcon="right" onClick={() => navigate('/fitness/exercises')}>Browse exercises</Button>
           </div>
 

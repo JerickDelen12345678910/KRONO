@@ -1149,3 +1149,15 @@ h1, h2, h3, h4, h5, h6 { margin: 0; font-weight: 700; line-height: 1.25; }
 .exercise-facts dd { margin: 0; font-weight: 500; }
 .exercise-steps { margin: 0; padding-left: 20px; font-size: 14px; }
 .exercise-steps li + li { margin-top: 8px; }
+// --- Phase 9 PACE 3b: workout builder + My workouts (tokens only; the list rows reuse .exercise-list/.exercise-link) ---
+.workout-items { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
+.workout-item { display: grid; gap: 12px; padding: 12px; background: var(--sf2); border: 1px solid var(--bd); border-radius: 12px; }
+.workout-item.warn { outline: 2px solid var(--warn); }   // the field messages carry the meaning; the outline only adds to them
+.workout-item-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.workout-item-head b { min-width: 0; font-size: 14px; font-weight: 700; overflow-wrap: anywhere; }
+.workout-item-actions { display: flex; flex-wrap: wrap; gap: 4px; flex: none; }
+.workout-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.workout-fields .form-field input, .workout-fields .form-field select { min-width: 0; width: 100%; }
+@media (min-width: 820px) { .workout-fields { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.workout-picker { margin-top: 12px; }
+.workout-picker .row-time { width: auto; min-width: 56px; }   // "3×45s" is wider than the default time column

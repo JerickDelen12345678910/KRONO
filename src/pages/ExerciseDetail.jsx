@@ -1,13 +1,20 @@
-import { Fragment } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useServices } from '../hooks/useServices';
 import { FITNESS_DISCLAIMER, RECOVERY_REMINDERS } from '../lib/exerciseLibrary.js';
 import { backSearch, exerciseDetail } from '../lib/exerciseView.js';
+import { itemsWithExercise } from '../lib/workoutForm.js';
+import { handleError } from '../lib/errors';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
+import { FormField } from '../components/ui/FormField';
+import { NoteBanner } from '../components/ui/NoteBanner';
 import { Pill } from '../components/ui/Pill';
 
+const NEW_WORKOUT = 'new';
+
 // One built-in exercise: what it is, how to do it, and general warm-up/recovery reminders. General information only.
+// "Add to workout" starts a new workout with it, or appends it to one of the user's workouts.
 export function ExerciseDetail() {
   const { id } = useParams();
   const { workout } = useServices();
@@ -16,6 +23,31 @@ export function ExerciseDetail() {
   const exercise = workout.getExercise(id);
   const view = exercise ? exerciseDetail(exercise) : null;
   const back = () => navigate(`/fitness/exercises${backSearch(location.state)}`);
+  const [workouts, setWorkouts] = useState([]);
+  const [target, setTarget] = useState(NEW_WORKOUT);
+  const [busy, setBusy] = useState(false);
+  const [addError, setAddError] = useState('');
+
+  useEffect(() => {
+    let alive = true;
+    workout.list().then((list) => { if (alive) setWorkouts(list); }).catch((e) => handleError(e, 'exercise-detail'));   // optional: without it only "A new workout" is offered
+    return () => { alive = false; };
+  }, [workout]);
+
+  const addToWorkout = async () => {
+    if (!exercise) return;
+    const existing = workouts.find((w) => w.id === target);
+    if (!existing) { navigate(`/fitness/workouts/new?exercise=${encodeURIComponent(exercise.id)}`); return; }
+    setBusy(true);
+    setAddError('');
+    try {
+      await workout.update(existing.id, { items: itemsWithExercise(existing, exercise) }, { expectedVersion: existing.version });
+      navigate(`/fitness/workouts/${existing.id}`);
+    } catch (e) {
+      setAddError(handleError(e, 'exercise-detail'));
+      setBusy(false);
+    }
+  };
 
   return (
     <div>
@@ -51,6 +83,18 @@ export function ExerciseDetail() {
               </Card>
             </div>
             <div className="stack">
+              <Card variant="fit" header="Add to a workout">
+                {addError && <NoteBanner className="mb-3">{addError}</NoteBanner>}
+                <div className="form-grid">
+                  <FormField label="Workout">
+                    <select value={target} onChange={(e) => setTarget(e.target.value)}>
+                      <option value={NEW_WORKOUT}>A new workout</option>
+                      {workouts.map((w) => <option key={w.id} value={w.id}>{w.name || 'Untitled workout'}</option>)}
+                    </select>
+                  </FormField>
+                  <Button variant="secondary" fullWidth disabled={busy} onClick={addToWorkout}>{busy ? 'Adding…' : 'Add to workout'}</Button>
+                </div>
+              </Card>
               <Card header="Warm-up and recovery">
                 <ul className="exercise-steps">
                   {RECOVERY_REMINDERS.map((tip) => <li key={tip}>{tip}</li>)}
