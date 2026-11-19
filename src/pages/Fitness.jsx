@@ -29,6 +29,8 @@ export function Fitness() {
   const [category, setCategory] = useState(null);   // null = the category of today's first workout
   const [data, setData] = useState({ summary: null, upcoming: [], progress: null, loading: true, error: '' });
   const [reload, setReload] = useState(0);
+  const [starting, setStarting] = useState(null);   // workout id whose session is being opened
+  const [startError, setStartError] = useState('');
   useRemoteChanges(REMOTE_COLLECTIONS, () => setReload((n) => n + 1));
 
   useEffect(() => {
@@ -55,10 +57,24 @@ export function Fitness() {
 
   const todayPlan = useMemo(() => plannedOn(data.summary?.planned, today), [data.summary, today]);
   const activeCategory = category ?? defaultCategory(todayPlan);
-  const blocks = forCategory(todayPlan, activeCategory).map((p) => workoutBlock(p, to12h));
+  const blocks = forCategory(todayPlan, activeCategory).map((p) => ({ workoutId: p.workout?.id ?? null, ...workoutBlock(p, to12h) }));
   const kpis = kpiCards(data.summary);
   const chart = data.progress ? chartModel(data.progress) : null;
   const next = data.upcoming[0] ?? null;
+
+  // Phase 9 PACE 4a: continue the workout's open session, or start a new one, then open the session screen.
+  async function startWorkout(workoutId) {
+    if (!workoutId || starting) return;
+    setStarting(workoutId);
+    setStartError('');
+    try {
+      const session = await workout.openSession(workoutId);
+      navigate(`/fitness/session/${session.id}`);
+    } catch (e) {
+      setStartError(handleError(e, 'fitness'));
+      setStarting(null);
+    }
+  }
 
   let emptyText = `No ${activeCategory} workout planned today.`;
   if (todayPlan.length === 0) {
@@ -69,7 +85,7 @@ export function Fitness() {
 
   return (
     <div>
-      {data.error && <NoteBanner className="mb-3">{data.error}</NoteBanner>}
+      {(startError || data.error) && <NoteBanner className="mb-3">{startError || data.error}</NoteBanner>}
 
       <section aria-labelledby="fit-week-heading">
         <h3 id="fit-week-heading" className="section-divider">This week</h3>
@@ -93,11 +109,10 @@ export function Fitness() {
                   </div>
                   {b.more > 0 && <p className="workout-meta">{`+${b.more} more ${b.more === 1 ? 'exercise' : 'exercises'}`}</p>}
                   <div className="workout-actions">
-                    <Button variant="fit" fullWidth leftIcon="play" disabled>Start workout</Button>
+                    <Button variant="fit" fullWidth leftIcon="play" loading={starting === b.workoutId} disabled={!b.workoutId || starting !== null} onClick={() => startWorkout(b.workoutId)}>Start workout</Button>
                   </div>
                 </div>
               ))}
-              {blocks.length > 0 && <p className="fit-note mt-3">Starting a workout is coming soon.</p>}
             </Card>
             <FilterChips options={CATEGORY_OPTIONS} value={activeCategory} onChange={setCategory} label="Workout category" />
             <Button variant="secondary" fullWidth rightIcon="right" onClick={() => navigate('/fitness/workouts')}>My workouts</Button>

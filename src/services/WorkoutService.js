@@ -3,6 +3,7 @@ import { addDays, nowIso, toLocalDate } from '../models/common.js';
 import { createWorkoutSession } from '../models/workout.js';
 import { EXERCISE_LIBRARY, getExerciseById, listExercises } from '../lib/exerciseLibrary.js';
 import { dailySeries, monthRange, plannedWorkouts, sessionDate, weekEnd, weekStart, weeklyStats } from '../lib/fitness.js';
+import { isOpenSession, planEntries } from '../lib/session.js';
 
 export class WorkoutService {
   constructor({ workouts, exerciseHistory, schedules, occurrences }) {
@@ -33,6 +34,33 @@ export class WorkoutService {
       ...(entries && { entries }), ...(activeSeconds != null && { activeSeconds }),
     });
   }
+
+  // ---- the workout session screen (Phase 9 PACE 4a; rules in src/lib/session.js) ----
+  /** The unfinished session of this workout that can still be continued (started within the last 3 hours), newest first, or null. `now` is injectable for tests. */
+  async findOpenSession(workoutId, { now = Date.now() } = {}) {
+    const rows = await this.history.list({ predicate: (s) => isOpenSession(s, workoutId, now) });
+    return rows.sort((a, b) => b.startedAt.localeCompare(a.startedAt))[0] ?? null;
+  }
+
+  /**
+   * What "Start workout" calls: continue the workout's open session, or start a new one whose entries carry a snapshot of the
+   * workout's plan (sets, reps / seconds, rest). `startSession` above is unchanged: it makes entries without that plan.
+   */
+  async openSession(workoutId, { now } = {}) {
+    const open = await this.findOpenSession(workoutId, { now });
+    if (open) return open;
+    const workout = await this.workouts.require(workoutId);
+    return this.history.create(createWorkoutSession(workout, { entries: planEntries(workout) }));
+  }
+
+  /** One session by id (rejects when it does not exist). */
+  getSession(id) { return this.history.require(id); }
+
+  /** Saves the exercise entries of an unfinished session (called after every logged set, so leaving the screen loses nothing). */
+  saveSessionEntries(id, entries) { return this.history.update(id, { entries }); }
+
+  /** Deletes an unfinished session (the screen's "Discard workout"). The screen offers it only for unfinished sessions: a finished one is history. */
+  discardSession(id) { return this.history.remove(id); }
 
   /** Newest first. listHistory({ from, to }) uses 'YYYY-MM-DD' LOCAL dates (the user's clock) on startedAt. */
   async listHistory({ from, to } = {}) {

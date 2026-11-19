@@ -7,6 +7,7 @@ import { ExerciseLibrary } from '../pages/ExerciseLibrary';
 import { ExerciseDetail } from '../pages/ExerciseDetail';
 import { MyWorkouts } from '../pages/MyWorkouts';
 import { WorkoutForm } from '../pages/WorkoutForm';
+import { WorkoutSession } from '../pages/WorkoutSession';
 import { MapPage } from '../pages/MapPage';
 import { Account } from '../pages/Account';
 import { ProtectedRoute } from './ProtectedRoute';
@@ -27,6 +28,7 @@ export function AppRoutes() {
           <Route path="/fitness/workouts" element={<MyWorkouts />} />
           <Route path="/fitness/workouts/new" element={<WorkoutForm />} />
           <Route path="/fitness/workouts/:id" element={<WorkoutForm />} />
+          <Route path="/fitness/session/:id" element={<WorkoutSession />} />
           <Route path="/map" element={<MapPage />} />
           <Route path="/account" element={<Account />} />
         </Route>
