@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useServices } from '../hooks/useServices';
 import { useRemoteChanges } from '../hooks/useRemoteChanges';
 import { EXERCISE_CATEGORIES } from '../models/constants.js';
@@ -23,6 +24,7 @@ const REMOTE_COLLECTIONS = ['workouts', 'exerciseHistory', 'schedules', 'occurre
 
 export function Fitness() {
   const { workout } = useServices();
+  const navigate = useNavigate();
   const [today, setToday] = useState(() => toLocalDate());
   const [category, setCategory] = useState(null);   // null = the category of today's first workout
   const [data, setData] = useState({ summary: null, upcoming: [], progress: null, loading: true, error: '' });
@@ -98,6 +100,7 @@ export function Fitness() {
               {blocks.length > 0 && <p className="fit-note mt-3">Starting a workout is coming soon.</p>}
             </Card>
             <FilterChips options={CATEGORY_OPTIONS} value={activeCategory} onChange={setCategory} label="Workout category" />
+            <Button variant="secondary" fullWidth rightIcon="right" onClick={() => navigate('/fitness/exercises')}>Browse exercises</Button>
           </div>
 
           <div className="stack">
