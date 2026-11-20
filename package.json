@@ -15,6 +15,7 @@
     "bootstrap-icons": "^1.13.2",
     "firebase": "^13.3.0",
     "idb": "^8.0.4",
+    "leaflet": "^1.9.4",
     "pdfjs-dist": "^6.5.438",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
