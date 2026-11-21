@@ -78,6 +78,16 @@ export class ReminderService {
     while (this.running) await this.running;
   }
 
+  /** The reminders currently scheduled on this device (the adapter's own list), for display. Never rejects: [] when the adapter cannot say. */
+  async listScheduled() {
+    try {
+      const rows = await this.adapter.list();
+      return Array.isArray(rows) ? rows : [];
+    } catch {
+      return [];
+    }
+  }
+
   async run() {
     try {
       const now = this.now();
