@@ -4,9 +4,13 @@ import { ThemeProvider } from './contexts/ThemeContext';
 import { AuthProvider } from './contexts/AuthContext';
 import { ServicesProvider } from './contexts/ServicesProvider';
 import { AppRoutes } from './routes/AppRoutes';
+import { UpdateBanner } from './components/ui/UpdateBanner';
+import { startPwa } from './pwa/index.js';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'bootstrap-icons/font/bootstrap-icons.css';
 import './styles/main.scss';
+
+startPwa();
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
@@ -16,6 +20,7 @@ createRoot(document.getElementById('root')).render(
           <AppRoutes />
         </ServicesProvider>
       </AuthProvider>
+      <UpdateBanner />
     </ThemeProvider>
   </StrictMode>
 );

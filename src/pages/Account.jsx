@@ -3,6 +3,7 @@ import { handleError } from '../lib/errors';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useServices } from '../hooks/useServices';
+import { usePwa } from '../hooks/usePwa';
 import { useSyncStatus } from '../hooks/useSyncStatus';
 import { pipelineSteps } from '../lib/syncStatus.js';
 import { REMINDER_OFFSETS } from '../models/constants.js';
@@ -43,6 +44,7 @@ export function Account() {
   const { user, profile, online, demo, updateProfile, signOut, deleteAccount } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const { reminders } = useServices();
+  const pwa = usePwa();
   const steps = pipelineSteps(useSyncStatus());
   const [form, setForm] = useState({
     displayName: profile?.displayName || '', userType: profile?.userType || '',
@@ -153,6 +155,19 @@ export function Account() {
               {enabling ? 'Requesting…' : 'Enable notifications'}
             </Button>
           </Card>
+          {(pwa.installed || pwa.canInstall || pwa.iosHint || pwa.offlineReady) && (
+            <Card>
+              <h3 className="ui-card-header">App {pwa.offlineReady && <Pill variant="ok">Works offline</Pill>}</h3>
+              {pwa.installed && <small className="row-subtitle d-block">Installed on this device.</small>}
+              {pwa.canInstall && (
+                <>
+                  <small className="row-subtitle d-block mb-2">Install the app for a faster start and its own window. Your data stays on this device.</small>
+                  <Button fullWidth onClick={pwa.install}>Install app</Button>
+                </>
+              )}
+              {pwa.iosHint && <small className="row-subtitle d-block">To install on iPhone or iPad, tap Share, then Add to Home Screen.</small>}
+            </Card>
+          )}
           <h3 className="section-divider">Security</h3>
           <Card>
             <Button fullWidth disabled={!online} onClick={run(signOut)}>Sign out</Button>
