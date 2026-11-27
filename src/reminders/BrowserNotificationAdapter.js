@@ -1,5 +1,5 @@
 import { PERMISSION } from './ReminderAdapter.js';
-import { playAlarmSound } from './alarmAudio.js';
+import { playAlarmSound, stopAlarmAudio } from './alarmAudio.js';
 
 const MAX_TIMEOUT_MS = 2 ** 31 - 1;
 
@@ -60,6 +60,7 @@ export class BrowserNotificationAdapter {
   }
 
   async cancel(ids = []) {
+    stopAlarmAudio();
     for (const id of ids) this.drop(id);
   }
 
@@ -83,6 +84,18 @@ export class BrowserNotificationAdapter {
     entry.timer = this.setTimer(() => this.arm(id), Math.min(wait, MAX_TIMEOUT_MS));
   }
 
+  snoozeReminder(reminder, minutes = 5) {
+    if (!reminder || this.disposed) return;
+    const snoozedId = `${reminder.id}-snooze-${Date.now()}`;
+    const at = this.clock() + minutes * 60 * 1000;
+    this.items.set(snoozedId, {
+      reminder: { ...reminder, id: snoozedId, title: `Snoozed · ${reminder.title}` },
+      at,
+      timer: null,
+    });
+    this.arm(snoozedId);
+  }
+
   async fire(id) {
     const entry = this.items.get(id);
     if (!entry) return;
@@ -90,7 +103,18 @@ export class BrowserNotificationAdapter {
     const { reminder } = entry;
     const isAlarm = reminder.mode === 'both' || reminder.mode === 'alarm';
 
-    playAlarmSound(reminder.sound || 'default', { loop: isAlarm, maxMs: isAlarm ? 20000 : 4000 }).catch(() => {});
+    playAlarmSound(reminder.sound || 'default', {
+      loop: isAlarm,
+      maxMs: isAlarm ? 30000 : 4000,
+      meta: isAlarm
+        ? {
+            id: reminder.id,
+            title: reminder.title,
+            body: reminder.body ?? '',
+            onSnooze: () => this.snoozeReminder(reminder, 5),
+          }
+        : null,
+    }).catch(() => {});
 
     if (this.getPermission() !== PERMISSION.GRANTED) return;
 
@@ -103,12 +127,22 @@ export class BrowserNotificationAdapter {
             tag: reminder.id,
             renotify: true,
             requireInteraction: isAlarm,
+            actions: isAlarm
+              ? [
+                  { action: 'stop', title: 'Stop Alarm' },
+                  { action: 'snooze', title: 'Snooze 5 min' },
+                ]
+              : [],
             vibrate: isAlarm ? [400, 200, 400, 200, 400] : [200, 100, 200],
           });
           return;
         }
       }
-      new this.Notification(reminder.title, { body: reminder.body, tag: reminder.id });
+      const n = new this.Notification(reminder.title, { body: reminder.body, tag: reminder.id });
+      n.onclick = () => {
+        stopAlarmAudio();
+        n.close();
+      };
     } catch {
       try { new this.Notification(reminder.title, { body: reminder.body, tag: reminder.id }); } catch { /* best effort */ }
     }

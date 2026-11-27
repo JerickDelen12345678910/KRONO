@@ -6,13 +6,14 @@
     android:background="@drawable/widget_glass_bg"
     android:gravity="center_vertical"
     android:orientation="vertical"
-    android:padding="14dp">
+    android:padding="12dp">
 
     <!-- Top Bar: Brand Tag + Live Status Pill -->
     <RelativeLayout
+        android:id="@+id/widget_top_bar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="8dp">
+        android:layout_marginBottom="6dp">
 
         <TextView
             android:id="@+id/widget_brand"
@@ -22,9 +23,9 @@
             android:background="#3338BDF8"
             android:letterSpacing="0.16"
             android:paddingStart="8dp"
-            android:paddingTop="3dp"
+            android:paddingTop="2dp"
             android:paddingEnd="8dp"
-            android:paddingBottom="3dp"
+            android:paddingBottom="2dp"
             android:text="KRONO"
             android:textColor="#7DD3FC"
             android:textSize="10sp"
@@ -35,6 +36,8 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_alignParentEnd="true"
+            android:ellipsize="end"
+            android:maxLines="1"
             android:text="● LIVE"
             android:textColor="#38BDF8"
             android:textSize="11sp"
@@ -51,9 +54,9 @@
 
         <FrameLayout
             android:id="@+id/widget_mascot_frame"
-            android:layout_width="62dp"
-            android:layout_height="62dp"
-            android:layout_marginEnd="12dp"
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:layout_marginEnd="10dp"
             android:background="@drawable/widget_glass_bg"
             android:padding="3dp">
 
@@ -92,7 +95,7 @@
                 android:maxLines="1"
                 android:text="CS 201"
                 android:textColor="#F8FAFC"
-                android:textSize="18sp"
+                android:textSize="17sp"
                 android:textStyle="bold" />
 
             <TextView
@@ -111,7 +114,7 @@
                 android:id="@+id/widget_subtitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="3dp"
+                android:layout_marginTop="2dp"
                 android:ellipsize="end"
                 android:maxLines="1"
                 android:text="Up next: MATH 210 (10:00 AM)"

@@ -1,9 +1,29 @@
-// Offline storage (IndexedDB) + audio playback for built-in and user-imported alarm sounds.
+// Offline storage (IndexedDB) + audio playback + active alarm state broadcast.
 const DB_NAME = 'cadence-alarm-audio';
 const STORE_NAME = 'sounds';
 const CUSTOM_KEY = 'custom-alarm';
 
 let activeStopper = null;
+let activeAlarmInfo = null;
+const alarmListeners = new Set();
+
+function notifyAlarmListeners() {
+  const snapshot = activeAlarmInfo ? { ...activeAlarmInfo } : null;
+  for (const fn of alarmListeners) {
+    try { fn(snapshot); } catch { /* ignore */ }
+  }
+}
+
+export function getActiveAlarm() {
+  return activeAlarmInfo ? { ...activeAlarmInfo } : null;
+}
+
+export function subscribeActiveAlarm(listener) {
+  if (typeof listener !== 'function') return () => {};
+  alarmListeners.add(listener);
+  try { listener(getActiveAlarm()); } catch { /* ignore */ }
+  return () => alarmListeners.delete(listener);
+}
 
 function openAudioDb() {
   return new Promise((resolve, reject) => {
@@ -102,18 +122,25 @@ export function stopAlarmAudio() {
     try { activeStopper(); } catch { /* ignore */ }
     activeStopper = null;
   }
+  if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+    try { navigator.vibrate(0); } catch { /* ignore */ }
+  }
+  if (activeAlarmInfo !== null) {
+    activeAlarmInfo = null;
+    notifyAlarmListeners();
+  }
 }
 
-function playSynthTone(preset = 'default', { loop = false, maxMs = 15000 } = {}) {
+function playSynthTone(preset = 'default', { loop = false, maxMs = 30000 } = {}) {
   const AudioCtx = globalThis.AudioContext || globalThis.webkitAudioContext;
   if (!AudioCtx) return () => {};
   const ctx = new AudioCtx();
   if (ctx.state === 'suspended') ctx.resume().catch(() => {});
 
   const patterns = {
-    gentle: { notes: [440, 554.37, 659.25], step: 0.28, gap: 1.4, type: 'sine', gain: 0.25 },
-    bright: { notes: [587.33, 783.99, 987.77, 1174.66], step: 0.16, gap: 1.1, type: 'triangle', gain: 0.32 },
-    default: { notes: [523.25, 659.25, 783.99, 659.25], step: 0.18, gap: 1.2, type: 'triangle', gain: 0.35 },
+    gentle: { notes: [440, 554.37, 659.25], step: 0.28, gap: 1.4, type: 'sine', gain: 0.28 },
+    bright: { notes: [587.33, 783.99, 987.77, 1174.66], step: 0.16, gap: 1.1, type: 'triangle', gain: 0.35 },
+    default: { notes: [523.25, 659.25, 783.99, 659.25], step: 0.18, gap: 1.2, type: 'triangle', gain: 0.38 },
   };
   const cfg = patterns[preset] || patterns.default;
   let stopped = false;
@@ -121,6 +148,9 @@ function playSynthTone(preset = 'default', { loop = false, maxMs = 15000 } = {})
 
   const triggerBurst = () => {
     if (stopped) return;
+    if (loop && typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+      try { navigator.vibrate([350, 150, 350]); } catch { /* ignore */ }
+    }
     const start = ctx.currentTime + 0.02;
     cfg.notes.forEach((freq, idx) => {
       const osc = ctx.createOscillator();
@@ -152,8 +182,21 @@ function playSynthTone(preset = 'default', { loop = false, maxMs = 15000 } = {})
 }
 
 /** Plays either the user's imported custom sound (`sound === 'custom'`) or a built-in sound. */
-export async function playAlarmSound(sound = 'default', { loop = false, maxMs = 15000 } = {}) {
+export async function playAlarmSound(sound = 'default', { loop = false, maxMs = 30000, meta = null } = {}) {
   stopAlarmAudio();
+
+  if (loop || meta) {
+    activeAlarmInfo = {
+      id: meta?.id || `alarm-${Date.now()}`,
+      title: meta?.title || 'KRONO Alarm',
+      body: meta?.body || 'Scheduled reminder is ringing',
+      sound,
+      onSnooze: typeof meta?.onSnooze === 'function' ? meta.onSnooze : null,
+      onDismiss: typeof meta?.onDismiss === 'function' ? meta.onDismiss : null,
+    };
+    notifyAlarmListeners();
+  }
+
   if (sound === 'custom') {
     const custom = await getCustomAlarmSound();
     if (custom && typeof Audio !== 'undefined') {

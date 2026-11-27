@@ -10,6 +10,8 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.os.Build;
+import android.os.Bundle;
+import android.util.TypedValue;
 import android.view.View;
 import android.widget.RemoteViews;
 
@@ -47,6 +49,12 @@ public class ScheduleWidgetProvider extends AppWidgetProvider {
     }
 
     @Override
+    public void onAppWidgetOptionsChanged(Context context, AppWidgetManager appWidgetManager, int appWidgetId, Bundle newOptions) {
+        super.onAppWidgetOptionsChanged(context, appWidgetManager, appWidgetId, newOptions);
+        updateSingleWidget(context, appWidgetManager, appWidgetId);
+    }
+
+    @Override
     public void onReceive(Context context, Intent intent) {
         super.onReceive(context, intent);
         if (intent != null && ACTION_REFRESH.equals(intent.getAction())) {
@@ -66,6 +74,43 @@ public class ScheduleWidgetProvider extends AppWidgetProvider {
         }
     }
 
+    private static void applyResponsiveLayout(RemoteViews views, AppWidgetManager manager, int widgetId, boolean hasLocation) {
+        Bundle options = manager.getAppWidgetOptions(widgetId);
+        int minW = options != null ? options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 260) : 260;
+        int minH = options != null ? options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 110) : 110;
+
+        boolean isCompactW = minW < 200;
+        boolean isShortH = minH < 88;
+        boolean isLarge = minW >= 300 && minH >= 120;
+
+        // Top bar visibility: hide on ultra-compact height/width so primary schedule remains crisp
+        views.setViewVisibility(R.id.widget_top_bar, (isShortH || isCompactW) ? View.GONE : View.VISIBLE);
+        views.setViewVisibility(R.id.widget_brand, minW < 235 ? View.GONE : View.VISIBLE);
+
+        // Mascot frame & text scaling based on widget bounds
+        if (isCompactW || isShortH) {
+            views.setTextViewTextSize(R.id.widget_time, TypedValue.COMPLEX_UNIT_SP, 10f);
+            views.setTextViewTextSize(R.id.widget_title, TypedValue.COMPLEX_UNIT_SP, 15f);
+            views.setTextViewTextSize(R.id.widget_subtitle, TypedValue.COMPLEX_UNIT_SP, 10f);
+            views.setViewVisibility(R.id.widget_location, View.GONE);
+            views.setViewVisibility(R.id.widget_subtitle, isShortH ? View.GONE : View.VISIBLE);
+        } else if (isLarge) {
+            views.setTextViewTextSize(R.id.widget_time, TypedValue.COMPLEX_UNIT_SP, 12f);
+            views.setTextViewTextSize(R.id.widget_title, TypedValue.COMPLEX_UNIT_SP, 20f);
+            views.setTextViewTextSize(R.id.widget_location, TypedValue.COMPLEX_UNIT_SP, 12f);
+            views.setTextViewTextSize(R.id.widget_subtitle, TypedValue.COMPLEX_UNIT_SP, 12f);
+            views.setViewVisibility(R.id.widget_location, hasLocation ? View.VISIBLE : View.GONE);
+            views.setViewVisibility(R.id.widget_subtitle, View.VISIBLE);
+        } else {
+            views.setTextViewTextSize(R.id.widget_time, TypedValue.COMPLEX_UNIT_SP, 11f);
+            views.setTextViewTextSize(R.id.widget_title, TypedValue.COMPLEX_UNIT_SP, 17f);
+            views.setTextViewTextSize(R.id.widget_location, TypedValue.COMPLEX_UNIT_SP, 11f);
+            views.setTextViewTextSize(R.id.widget_subtitle, TypedValue.COMPLEX_UNIT_SP, 11f);
+            views.setViewVisibility(R.id.widget_location, hasLocation ? View.VISIBLE : View.GONE);
+            views.setViewVisibility(R.id.widget_subtitle, View.VISIBLE);
+        }
+    }
+
     private static void updateSingleWidget(Context context, AppWidgetManager manager, int widgetId) {
         RemoteViews views = new RemoteViews(context.getPackageName(), R.layout.widget_schedule);
         SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
@@ -75,7 +120,6 @@ public class ScheduleWidgetProvider extends AppWidgetProvider {
             flags |= PendingIntent.FLAG_IMMUTABLE;
         }
 
-        // Tapping widget opens KRONO app cleanly (no action buttons on widget)
         Intent openIntent = new Intent(context, MainActivity.class);
         openIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
         PendingIntent pendingIntent = PendingIntent.getActivity(context, 0, openIntent, flags);
@@ -91,8 +135,8 @@ public class ScheduleWidgetProvider extends AppWidgetProvider {
             applyModeVisuals(views, overrideMode, "LIVE ETA");
             views.setTextViewText(R.id.widget_time, time.toUpperCase(Locale.US));
             views.setTextViewText(R.id.widget_title, title);
-            views.setViewVisibility(R.id.widget_location, View.GONE);
             views.setTextViewText(R.id.widget_subtitle, subtitle);
+            applyResponsiveLayout(views, manager, widgetId, false);
             manager.updateAppWidget(widgetId, views);
             return;
         }
@@ -149,18 +193,15 @@ public class ScheduleWidgetProvider extends AppWidgetProvider {
 
             views.setTextViewText(R.id.widget_time, "NOW · " + to12h(start) + " – " + to12h(end));
             views.setTextViewText(R.id.widget_title, displayCode);
-
             if (!location.isEmpty()) {
-                views.setViewVisibility(R.id.widget_location, View.VISIBLE);
                 views.setTextViewText(R.id.widget_location, "📍 " + location);
-            } else {
-                views.setViewVisibility(R.id.widget_location, View.GONE);
             }
 
             String nextLine = next != null
                     ? "Up next: " + resolveWidgetLabel(next, "Next") + " (" + to12h(next.optString("startTime", "00:00")) + ")"
                     : "Up next: No more classes today";
             views.setTextViewText(R.id.widget_subtitle, nextLine);
+            applyResponsiveLayout(views, manager, widgetId, !location.isEmpty());
 
         } else if (next != null) {
             int nextIndex = todayItems.indexOf(next);
@@ -176,25 +217,22 @@ public class ScheduleWidgetProvider extends AppWidgetProvider {
 
             views.setTextViewText(R.id.widget_time, "NEXT · " + to12h(start) + " – " + to12h(end));
             views.setTextViewText(R.id.widget_title, displayCode);
-
             if (!location.isEmpty()) {
-                views.setViewVisibility(R.id.widget_location, View.VISIBLE);
                 views.setTextViewText(R.id.widget_location, "📍 " + location);
-            } else {
-                views.setViewVisibility(R.id.widget_location, View.GONE);
             }
 
             String afterLine = afterNext != null
                     ? "Then: " + resolveWidgetLabel(afterNext, "Later") + " (" + to12h(afterNext.optString("startTime", "00:00")) + ")"
                     : "Starts at " + to12h(start);
             views.setTextViewText(R.id.widget_subtitle, afterLine);
+            applyResponsiveLayout(views, manager, widgetId, !location.isEmpty());
 
         } else {
             applyModeVisuals(views, "schedule", "FREE");
             views.setTextViewText(R.id.widget_time, "ALL CLEAR TODAY");
             views.setTextViewText(R.id.widget_title, "No Active Schedule");
-            views.setViewVisibility(R.id.widget_location, View.GONE);
             views.setTextViewText(R.id.widget_subtitle, "Your timeline is open");
+            applyResponsiveLayout(views, manager, widgetId, false);
         }
 
         manager.updateAppWidget(widgetId, views);

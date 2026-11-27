@@ -6,6 +6,7 @@ import { ServicesProvider } from './contexts/ServicesProvider';
 import { AppRoutes } from './routes/AppRoutes';
 import { UpdateBanner } from './components/ui/UpdateBanner';
 import { startPwa } from './pwa/index.js';
+import { stopAlarmAudio, subscribeActiveAlarm } from './reminders/alarmAudio.js';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'bootstrap-icons/font/bootstrap-icons.css';
 import './styles/main.scss';
@@ -37,6 +38,50 @@ const MASCOTS = [
     accent: '#34D399',
   },
 ];
+
+// eslint-disable-next-line react-refresh/only-export-components
+function ActiveAlarmOverlay() {
+  const [alarm, setAlarm] = useState(null);
+
+  useEffect(() => subscribeActiveAlarm(setAlarm), []);
+
+  if (!alarm) return null;
+
+  const handleStop = () => {
+    const dismissFn = alarm.onDismiss;
+    stopAlarmAudio();
+    if (typeof dismissFn === 'function') dismissFn();
+  };
+
+  const handleSnooze = () => {
+    const snoozeFn = alarm.onSnooze;
+    stopAlarmAudio();
+    if (typeof snoozeFn === 'function') snoozeFn();
+  };
+
+  return (
+    <div className="krono-alarm-banner" role="alertdialog" aria-live="assertive" aria-label="Alarm ringing">
+      <div className="krono-alarm-banner-card krono-pop-in">
+        <div className="krono-alarm-pulse" aria-hidden="true">🔔</div>
+        <div className="krono-alarm-copy">
+          <span className="krono-alarm-kicker">ALARM RINGING</span>
+          <b>{alarm.title}</b>
+          {alarm.body && <small>{alarm.body}</small>}
+        </div>
+        <div className="krono-alarm-actions">
+          {alarm.onSnooze && (
+            <button type="button" className="btn btn-secondary btn-sm" onClick={handleSnooze}>
+              Snooze 5m
+            </button>
+          )}
+          <button type="button" className="btn btn-sm krono-alarm-stop-btn" onClick={handleStop}>
+            Stop Alarm
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // eslint-disable-next-line react-refresh/only-export-components
 function FirstInstallReviewGate({ children }) {
@@ -118,7 +163,7 @@ function FirstInstallReviewGate({ children }) {
 
 // eslint-disable-next-line react-refresh/only-export-components
 function KronoSplashGate({ children }) {
-  const [phase, setPhase] = useState('show'); // 'show' -> 'exit' -> 'done'
+  const [phase, setPhase] = useState('show');
 
   useEffect(() => {
     const t1 = setTimeout(() => setPhase('exit'), 1550);
@@ -172,6 +217,7 @@ createRoot(document.getElementById('root')).render(
             </ServicesProvider>
           </FirstInstallReviewGate>
         </AuthProvider>
+        <ActiveAlarmOverlay />
         <UpdateBanner />
       </KronoSplashGate>
     </ThemeProvider>

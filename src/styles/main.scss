@@ -733,3 +733,93 @@ button, input, select, textarea {
   font-weight: 700;
   color: var(--mu);
 }
+
+// --- Global Floating Alarm Banner ---
+@keyframes kronoAlarmRing {
+  0%, 100% { transform: rotate(0deg) scale(1); }
+  20% { transform: rotate(-16deg) scale(1.1); }
+  40% { transform: rotate(16deg) scale(1.1); }
+  60% { transform: rotate(-10deg) scale(1.05); }
+  80% { transform: rotate(10deg) scale(1.05); }
+}
+
+.krono-alarm-banner {
+  position: fixed;
+  top: calc(12px + env(safe-area-inset-top, 0px));
+  left: 12px;
+  right: 12px;
+  z-index: 9998;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.krono-alarm-banner-card {
+  pointer-events: auto;
+  width: 100%;
+  max-width: 480px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 18px;
+  background: var(--sf);
+  border: 2px solid var(--err, #ef4444);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.28);
+}
+
+.krono-alarm-pulse {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: rgba(239, 68, 68, 0.14);
+  font-size: 20px;
+  flex-shrink: 0;
+  animation: kronoAlarmRing 900ms ease-in-out infinite;
+}
+
+.krono-alarm-copy {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.krono-alarm-kicker {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: var(--err, #ef4444);
+}
+
+.krono-alarm-copy b {
+  font-size: 14px;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.krono-alarm-copy small {
+  font-size: 12px;
+  color: var(--mu);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.krono-alarm-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.krono-alarm-stop-btn {
+  background: var(--err, #ef4444) !important;
+  color: #ffffff !important;
+  border: 0 !important;
+  font-weight: 800 !important;
+}
