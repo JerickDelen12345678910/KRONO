@@ -113,11 +113,21 @@ function FirstInstallReviewGate({ children }) {
   };
 
   return (
-    <div className="krono-onboard-backdrop">
-      <div className="krono-onboard-card krono-fade-in">
-        <div className="krono-onboard-mascots">
+    <div className="krono-onboard-backdrop krono-dark-unified">
+      <div className="krono-login-bg-art" aria-hidden="true">
+        <div className="krono-login-glow krono-login-glow-1" />
+        <div className="krono-login-glow krono-login-glow-2" />
+        <img src="/favicon.svg" alt="" className="krono-login-watermark" />
+      </div>
+
+      <div className="krono-onboard-card krono-login-card krono-fade-in">
+        <div className="krono-onboard-mascots krono-3d-trio-mini">
           {MASCOTS.map((m, idx) => (
-            <div key={m.id} className="krono-onboard-avatar" style={{ '--delay': `${idx * 90}ms`, '--ring': m.accent }}>
+            <div
+              key={m.id}
+              className={`krono-onboard-avatar is-3d-pos-${idx}`}
+              style={{ '--delay': `${idx * 100}ms`, '--ring': m.accent }}
+            >
               <img src={m.src} alt={m.name} />
             </div>
           ))}
@@ -126,7 +136,7 @@ function FirstInstallReviewGate({ children }) {
         <span className="krono-login-badge">WELCOME TO KRONO</span>
         <h2>Everything in Sync</h2>
         <p className="krono-onboard-lead">
-          Before signing in, review what KRONO includes and the device permissions it uses to keep your day on track:
+          Review what KRONO includes and the device permissions it uses to keep your day on track:
         </p>
 
         <div className="krono-onboard-list">
@@ -166,8 +176,8 @@ function KronoSplashGate({ children }) {
   const [phase, setPhase] = useState('show');
 
   useEffect(() => {
-    const t1 = setTimeout(() => setPhase('exit'), 1550);
-    const t2 = setTimeout(() => setPhase('done'), 1950);
+    const t1 = setTimeout(() => setPhase('exit'), 1850);
+    const t2 = setTimeout(() => setPhase('done'), 2350);
     return () => {
       clearTimeout(t1);
       clearTimeout(t2);
@@ -178,14 +188,23 @@ function KronoSplashGate({ children }) {
     <>
       {children}
       {phase !== 'done' && (
-        <div className={`krono-splash-overlay${phase === 'exit' ? ' is-exiting' : ''}`} aria-hidden="true">
-          <div className="krono-splash-stage">
-            <div className="krono-mascot-trio">
+        <div
+          className={`krono-splash-overlay krono-dark-splash${phase === 'exit' ? ' is-exiting' : ''}`}
+          aria-hidden="true"
+        >
+          <div className="krono-login-bg-art">
+            <div className="krono-login-glow krono-login-glow-1" />
+            <div className="krono-login-glow krono-login-glow-2" />
+            <img src="/favicon.svg" alt="" className="krono-login-watermark" />
+          </div>
+
+          <div className="krono-splash-stage krono-3d-stage">
+            <div className="krono-mascot-trio krono-3d-trio">
               {MASCOTS.map((m, i) => (
                 <div
                   key={m.id}
-                  className={`krono-mascot-card is-pos-${i}`}
-                  style={{ '--stagger': `${i * 130}ms`, '--accent': m.accent }}
+                  className={`krono-mascot-card krono-3d-float-card is-pos-${i}`}
+                  style={{ '--stagger': `${i * 120}ms`, '--accent': m.accent }}
                 >
                   <div className="krono-mascot-ring">
                     <img src={m.src} alt={m.name} />
@@ -194,11 +213,18 @@ function KronoSplashGate({ children }) {
                 </div>
               ))}
             </div>
+
             <div className="krono-splash-copy">
-              <span className="krono-splash-wordmark">KRONO</span>
-              <small className="krono-splash-sub">Schedule · Fitness · Navigation</small>
+              <div className="krono-splash-logo-pill">
+                <img src="/favicon.svg" alt="" width="24" height="24" />
+                <span>KRONO</span>
+              </div>
+              <small className="krono-splash-sub">SCHEDULE · FITNESS · NAVIGATION</small>
             </div>
-            <div className="krono-splash-bar"><span /></div>
+
+            <div className="krono-splash-bar">
+              <span />
+            </div>
           </div>
         </div>
       )}
