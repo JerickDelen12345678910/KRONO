@@ -1,4 +1,5 @@
 import { addDays, toLocalDateTime } from '../models/common.js';
+import { OCCURRENCE_STATUS } from '../models/constants.js';
 import {
   MAX_OFFSET_MINUTES, PLAN_HORIZON_DAYS, buildReminders, diffReminders, normalizeReminderSettings,
 } from '../lib/reminders.js';
@@ -8,6 +9,14 @@ import { PERMISSION, assertReminderAdapter } from '../reminders/ReminderAdapter.
 const LOOKAHEAD_DAYS = PLAN_HORIZON_DAYS + Math.ceil(MAX_OFFSET_MINUTES / 1440) + 1;
 const NOTHING = { scheduled: 0, cancelled: 0, kept: 0 };
 const sameSettings = (a, b) => Object.keys(a).every((k) => a[k] === b[k]);
+
+function shiftMinutes(baseDateTime, minutes) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(String(baseDateTime ?? ''));
+  const base = m
+    ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), Number(m[4]), Number(m[5]) + minutes)
+    : new Date(Date.now() + minutes * 60000);
+  return toLocalDateTime(base);
+}
 
 /**
  * Keeps the platform scheduler (the adapter) equal to what buildReminders() says should exist.
@@ -31,6 +40,7 @@ export class ReminderService {
     this.settings = normalizeReminderSettings(settings);
     this.now = now;
     this.onSettingsChange = onSettingsChange;
+    this.snoozes = new Map();   // id -> { reminder, fireAt }
     this.running = null;
     this.dirty = false;
     this.disposed = false;
@@ -88,6 +98,24 @@ export class ReminderService {
     }
   }
 
+  /**
+   * Postpones a reminder (by id or reminder object) by `minutes` (defaults to `settings.snoozeMinutes`) from `now()`
+   * and re-syncs the adapter. Returns the snoozed reminder or null when not found.
+   */
+  async snooze(idOrReminder, minutes) {
+    if (this.disposed) return null;
+    const base = typeof idOrReminder === 'object' && idOrReminder !== null
+      ? idOrReminder
+      : (await this.listScheduled()).find((r) => r.id === idOrReminder) ?? null;
+    if (!base?.id) return null;
+    const mins = Number.isInteger(minutes) && minutes > 0 ? minutes : this.settings.snoozeMinutes;
+    const fireAt = shiftMinutes(this.now(), mins);
+    const snoozed = { ...base, fireAt, snoozeMinutes: mins };
+    this.snoozes.set(base.id, { reminder: snoozed, fireAt });
+    await this.sync();
+    return snoozed;
+  }
+
   async run() {
     try {
       const now = this.now();
@@ -98,6 +126,34 @@ export class ReminderService {
         this.adapter.list(),
       ]);
       const next = buildReminders({ schedules, occurrences, settings: this.settings, now });
+
+      if (this.settings.enabled && this.snoozes.size > 0) {
+        const occById = new Map(occurrences.map((o) => [o.id, o]));
+        const nextById = new Map(next.map((r) => [r.id, r]));
+        let mutated = false;
+        for (const [id, entry] of this.snoozes.entries()) {
+          if (entry.fireAt <= now) {
+            this.snoozes.delete(id);
+            continue;
+          }
+          const occ = occById.get(id);
+          if (occ && (occ.deleted || occ.status !== OCCURRENCE_STATUS.SCHEDULED)) {
+            this.snoozes.delete(id);
+            continue;
+          }
+          if (nextById.has(id)) {
+            nextById.get(id).fireAt = entry.fireAt;
+            mutated = true;
+          } else {
+            next.push({ ...entry.reminder, fireAt: entry.fireAt });
+            mutated = true;
+          }
+        }
+        if (mutated) {
+          next.sort((a, b) => a.fireAt.localeCompare(b.fireAt) || a.id.localeCompare(b.id));
+        }
+      }
+
       const diff = diffReminders(current, next);
       if (this.disposed) return { ok: true, ...NOTHING };
       if (diff.schedule.length) await this.adapter.schedule(diff.schedule);
@@ -111,8 +167,16 @@ export class ReminderService {
     }
   }
 
-  // ---- permission (browser adapter; native adapters decide for themselves) ----
+  // ---- permission (browser & native Capacitor adapters) ----
   getPermission() { return this.adapter.getPermission?.() ?? PERMISSION.UNSUPPORTED; }
+
+  /** Refreshes async OS permission state (e.g. Android 13+ POST_NOTIFICATIONS) without prompting the user. */
+  async refreshPermission() {
+    if (typeof this.adapter.refreshPermission === 'function') {
+      return (await this.adapter.refreshPermission()) ?? this.getPermission();
+    }
+    return this.getPermission();
+  }
 
   /** Call ONLY directly from a user action (click / tap). Never on startup. */
   async requestPermission() { return (await this.adapter.requestPermission?.()) ?? PERMISSION.UNSUPPORTED; }

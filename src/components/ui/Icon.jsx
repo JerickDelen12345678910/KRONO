@@ -6,6 +6,7 @@ const icons = {
   user: (<><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></>),
   plus: (<><path d="M12 5v14M5 12h14" /></>),
   play: (<><path d="M7 4l13 8-13 8z" /></>),
+  pause: (<><path d="M9 5v14M15 5v14" /></>),
   search: (<><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4" /></>),
   bell: (<><path d="M6 16v-5a6 6 0 0 1 12 0v5l2 2H4zM10 21h4" /></>),
   up: (<><path d="M12 16V4M7 9l5-5 5 5M4 20h16" /></>),

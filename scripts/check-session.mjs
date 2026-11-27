@@ -1,14 +1,16 @@
-// scripts/check-session.mjs — Phase 9 PACE 4a: the pure session logic (src/lib/session.js) and the new WorkoutService
-// session methods (openSession / findOpenSession / getSession / saveSessionEntries / finishSession / discardSession),
-// the latter against tiny in-memory stand-in repositories (the real Repository is covered by its own checks).
-// Runs in plain Node: it imports no browser-only module.
-import { ENTRY_STATUS, SESSION_STATUS } from '../src/models/constants.js';
-import { createWorkout, createWorkoutItem } from '../src/models/workout.js';
+// scripts/check-session.mjs — Phase 9 PACE 4a–4c: the pure session logic (src/lib/session.js) and the WorkoutService
+// session methods (openSession / findOpenSession / listAbandonedSessions / getSession / saveSessionEntries / pauseSession /
+// resumeSession / finishSession / discardSession / findTodayOccurrence / resolveSessionOccurrence), the latter against
+// tiny in-memory stand-in repositories. Runs in plain Node: it imports no browser-only module.
+import { ENTRY_STATUS, OCCURRENCE_STATUS, SESSION_STATUS } from '../src/models/constants.js';
+import { createWorkout, createWorkoutItem, createWorkoutSession } from '../src/models/workout.js';
 import {
-  SESSION_WINDOW_SECONDS, discardMessage, elapsedSeconds, entryView, entryViews, finalizeEntries, finishMessage, isOpenSession,
-  logSet, planEntries, progressText, sessionProgress, skipEntry, undoSet, unskipEntry,
+  SESSION_WINDOW_SECONDS, activeSessionSeconds, discardMessage, elapsedSeconds, entryView, entryViews, finalizeEntries,
+  finishMessage, formatClock, isAbandonedSession, isOpenSession, logSet, pauseSessionPatch, planEntries, progressText,
+  restForLoggedSet, resumeSessionPatch, sessionProgress, skipEntry, tickRestTimer, undoSet, unskipEntry,
 } from '../src/lib/session.js';
 import { WorkoutService } from '../src/services/WorkoutService.js';
+import { ScheduleService } from '../src/services/ScheduleService.js';
 
 let count = 0;
 const failures = [];
@@ -91,6 +93,18 @@ check('progressText: with a skipped exercise', progressText(pSkip) === '0 of 4 s
 check('progressText: everything skipped', progressText(sessionProgress(skipEntry(skipEntry(skipEntry(planned, 0), 1), 2))) === 'Every exercise is skipped.');
 check('progressText: empty workout', progressText(sessionProgress([])) === 'No exercises in this workout.');
 
+// ---- rest timer ----
+const r0 = restForLoggedSet(planned, logged1, 0);
+check('restForLoggedSet: starts with plan restSec after a logged set', same(r0, { exerciseName: 'Push-ups', durationSec: 60, remainingSec: 60 }));
+check('restForLoggedSet: starts even after the last set of an exercise if other exercises remain', restForLoggedSet(logSet(logged1, 0), e, 0)?.remainingSec === 60);
+check('restForLoggedSet: null when restSec is 0', restForLoggedSet(planned, logSet(planned, 2), 2) === null);
+check('restForLoggedSet: null when nothing changed or on undo', restForLoggedSet(planned, planned, 0) === null && restForLoggedSet(logged1, planned, 0) === null);
+const almostDone = skipEntry(e, 1); // entry 0 done, entry 1 skipped, entry 2 (1 set) pending
+check('restForLoggedSet: null when the very last set of the workout is logged', restForLoggedSet(almostDone, logSet(almostDone, 2), 2) === null);
+check('tickRestTimer: counts down by 1s', tickRestTimer(r0, 1)?.remainingSec === 59);
+check('tickRestTimer: returns null at 0', tickRestTimer({ exerciseName: 'Push-ups', durationSec: 60, remainingSec: 1 }, 1) === null);
+check('tickRestTimer: null stays null', tickRestTimer(null, 1) === null);
+
 // ---- finalize / messages ----
 const mid = logSet(logSet(planned, 0), 0);            // Push-ups 2 of 3, others untouched
 const fin = finalizeEntries(deepFreeze(mid));
@@ -126,12 +140,30 @@ const vBare = entryView(bare, 0);
 check('entryView: an entry without a plan still renders (1 set, no target)', vBare.rows.length === 1 && vBare.target === '' && vBare.canLog);
 check('entryView: no plan and no name', entryView({ status: PENDING, sets: [] }, 0).title === '1. Exercise');
 
-// ---- elapsed / open ----
+// ---- elapsed / active time / pause / open / abandoned ----
 const T0 = Date.parse('2026-11-19T08:00:00.000Z');
 check('elapsedSeconds: simple', elapsedSeconds('2026-11-19T08:00:00.000Z', T0 + 45 * 60 * 1000) === 2700);
 check('elapsedSeconds: capped at the window', elapsedSeconds('2026-11-19T08:00:00.000Z', T0 + 10 * 3600 * 1000) === SESSION_WINDOW_SECONDS);
 check('elapsedSeconds: never negative', elapsedSeconds('2026-11-19T08:00:00.000Z', T0 - 5000) === 0);
 check('elapsedSeconds: invalid start gives 0', elapsedSeconds('nope', T0) === 0 && elapsedSeconds(undefined, T0) === 0);
+
+check('formatClock: mm:ss and h:mm:ss', formatClock(0) === '00:00' && formatClock(65) === '01:05' && formatClock(3661) === '1:01:01');
+
+const baseSession = createWorkoutSession(workout, { startedAt: '2026-11-19T08:00:00.000Z' });
+check('createWorkoutSession: defaults pausedAt null and pausedSeconds 0', baseSession.pausedAt === null && baseSession.pausedSeconds === 0);
+check('activeSessionSeconds: running session', activeSessionSeconds(baseSession, T0 + 600 * 1000) === 600);
+const pPatch = pauseSessionPatch(baseSession, '2026-11-19T08:10:00.000Z');
+check('pauseSessionPatch: sets paused and pausedAt', same(pPatch, { status: SESSION_STATUS.PAUSED, pausedAt: '2026-11-19T08:10:00.000Z' }));
+const pausedSession = { ...baseSession, ...pPatch };
+check('pauseSessionPatch: already paused returns null', pauseSessionPatch(pausedSession, '2026-11-19T08:12:00.000Z') === null);
+check('activeSessionSeconds: frozen while paused', activeSessionSeconds(pausedSession, T0 + 900 * 1000) === 600);
+const rPatch = resumeSessionPatch(pausedSession, '2026-11-19T08:15:00.000Z');
+check('resumeSessionPatch: restores in_progress and accumulates pausedSeconds', same(rPatch, { status: SESSION_STATUS.IN_PROGRESS, pausedAt: null, pausedSeconds: 300 }));
+check('resumeSessionPatch: non-paused returns null', resumeSessionPatch(baseSession, '2026-11-19T08:15:00.000Z') === null);
+const resumedSession = { ...pausedSession, ...rPatch };
+check('activeSessionSeconds: excludes accumulated pause after resume', activeSessionSeconds(resumedSession, T0 + 1200 * 1000) === 900);
+check('activeSessionSeconds: completed session returns stored activeSeconds', activeSessionSeconds({ ...resumedSession, status: SESSION_STATUS.COMPLETED, activeSeconds: 888 }, T0 + 5000 * 1000) === 888);
+
 const open = { workoutId: 'w1', status: SESSION_STATUS.IN_PROGRESS, startedAt: '2026-11-19T08:00:00.000Z', deleted: false };
 check('isOpenSession: in progress, recent', isOpenSession(open, 'w1', T0 + 60 * 1000));
 check('isOpenSession: paused counts as open', isOpenSession({ ...open, status: SESSION_STATUS.PAUSED }, 'w1', T0 + 60 * 1000));
@@ -141,13 +173,21 @@ check('isOpenSession: completed is not open', !isOpenSession({ ...open, status: 
 check('isOpenSession: another workout', !isOpenSession(open, 'w2', T0 + 1000));
 check('isOpenSession: deleted, invalid start, null', !isOpenSession({ ...open, deleted: true }, 'w1', T0) && !isOpenSession({ ...open, startedAt: 'x' }, 'w1', T0) && !isOpenSession(null, 'w1', T0));
 
+check('isAbandonedSession: false within window', !isAbandonedSession(open, T0 + SESSION_WINDOW_SECONDS * 1000));
+check('isAbandonedSession: true past window for in_progress or paused', isAbandonedSession(open, T0 + SESSION_WINDOW_SECONDS * 1000 + 1) && isAbandonedSession({ ...open, status: SESSION_STATUS.PAUSED }, T0 + SESSION_WINDOW_SECONDS * 1000 + 1));
+check('isAbandonedSession: false when completed or deleted', !isAbandonedSession({ ...open, status: SESSION_STATUS.COMPLETED }, T0 + 99999999) && !isAbandonedSession({ ...open, deleted: true }, T0 + 99999999));
+
 // ---- WorkoutService session methods (stand-in repositories) ----
 function fakeRepo() {
   const rows = new Map();
   let n = 0;
   return {
     rows,
-    async create(record) { const r = { ...record, id: record.id ?? `r${(n += 1)}` }; rows.set(r.id, r); return r; },
+    async create(record) { const r = { version: 1, deleted: false, ...record, id: record.id ?? `r${(n += 1)}` }; rows.set(r.id, r); return r; },
+    async get(id) {
+      const r = rows.get(id);
+      return !r || r.deleted ? null : r;
+    },
     async require(id) {
       const r = rows.get(id);
       if (!r || r.deleted) throw new Error(`not found: ${id}`);
@@ -155,19 +195,32 @@ function fakeRepo() {
     },
     async update(id, changes) {
       const r = await this.require(id);
-      const next = { ...r, ...changes, version: r.version + 1 };
+      const next = { ...r, ...changes, version: (r.version ?? 1) + 1 };
       rows.set(id, next);
       return next;
     },
     async remove(id) { const r = await this.require(id); rows.set(id, { ...r, deleted: true }); return true; },
-    async list({ predicate } = {}) { return [...rows.values()].filter((r) => !r.deleted && (!predicate || predicate(r))); },
+    async list({ where, predicate } = {}) {
+      return [...rows.values()].filter((r) => !r.deleted
+        && (!where || Object.entries(where).every(([k, v]) => r[k] === v))
+        && (!predicate || predicate(r)));
+    },
   };
 }
 async function makeService() {
   const workoutsRepo = fakeRepo();
   const historyRepo = fakeRepo();
+  const schedulesRepo = fakeRepo();
+  const occurrencesRepo = fakeRepo();
   await workoutsRepo.create(workout);
-  return { historyRepo, service: new WorkoutService({ workouts: workoutsRepo, exerciseHistory: historyRepo, schedules: fakeRepo(), occurrences: fakeRepo() }) };
+  return {
+    workoutsRepo,
+    historyRepo,
+    schedulesRepo,
+    occurrencesRepo,
+    service: new WorkoutService({ workouts: workoutsRepo, exerciseHistory: historyRepo, schedules: schedulesRepo, occurrences: occurrencesRepo }),
+    scheduleService: new ScheduleService({ schedules: schedulesRepo, occurrences: occurrencesRepo }),
+  };
 }
 
 {
@@ -191,8 +244,14 @@ async function makeService() {
   check('saveSessionEntries: survives a reload', (await service.getSession(s1.id)).entries[0].sets.length === 1);
   check('openSession: continuing returns the saved progress', (await service.openSession('w1')).entries[0].sets.length === 1);
 
+  const paused = await service.pauseSession(s1.id, { now: '2026-11-19T08:10:00.000Z' });
+  check('pauseSession: persists paused status and pausedAt', paused.status === SESSION_STATUS.PAUSED && paused.pausedAt === '2026-11-19T08:10:00.000Z');
+  check('openSession: finds a paused session too', (await service.openSession('w1', { now: T0 + 15 * 60 * 1000 }))?.id === s1.id);
+  const resumed = await service.resumeSession(s1.id, { now: '2026-11-19T08:15:00.000Z' });
+  check('resumeSession: restores in_progress and stores pausedSeconds', resumed.status === SESSION_STATUS.IN_PROGRESS && resumed.pausedAt === null && resumed.pausedSeconds === 300);
+
   const finished = await service.finishSession(s1.id, { entries: finalizeEntries((await service.getSession(s1.id)).entries), activeSeconds: 600 });
-  check('finishSession: completed with the entries and active time', finished.status === SESSION_STATUS.COMPLETED && finished.activeSeconds === 600 && finished.entries.every((x) => x.status !== PENDING) && Boolean(finished.endedAt));
+  check('finishSession: completed with the entries and active time', finished.status === SESSION_STATUS.COMPLETED && finished.activeSeconds === 600 && finished.pausedAt === null && finished.entries.every((x) => x.status !== PENDING) && Boolean(finished.endedAt));
   check('findOpenSession: a finished session is not open', (await service.findOpenSession('w1')) === null);
 
   const s2 = await service.openSession('w1');
@@ -206,14 +265,37 @@ async function makeService() {
   check('discardSession: Start begins a fresh session afterwards', (await service.openSession('w1')).id !== s2.id);
 }
 
+// ---- Phase 9 PACE 4c: occurrence linking and marking Done on finish ----
+{
+  const { service, scheduleService, workoutsRepo, schedulesRepo, occurrencesRepo } = await makeService();
+  await schedulesRepo.create({ id: 'sched-gym', title: 'Gym', startTime: '12:30', endTime: '13:15', linkedWorkoutId: null });
+  await workoutsRepo.create(createWorkout({ id: 'w-sched', name: 'Scheduled push', category: 'Strength', scheduleId: 'sched-gym', items: workout.items }));
+  await occurrencesRepo.create({ id: 'sched-gym_2026-11-23', scheduleId: 'sched-gym', date: '2026-11-23', startTime: '12:30', endTime: '13:15', status: OCCURRENCE_STATUS.SCHEDULED, completedAt: null });
+
+  const nonSchedSession = await service.openSession('w-sched', { today: '2026-11-24' });
+  check('openSession: non-scheduled day leaves occurrenceId null', nonSchedSession.occurrenceId === null);
+  await service.discardSession(nonSchedSession.id);
+
+  const schedSession = await service.openSession('w-sched', { today: '2026-11-23' });
+  check('openSession: links today matching scheduled occurrenceId', schedSession.occurrenceId === 'sched-gym_2026-11-23' && schedSession.scheduleId === 'sched-gym');
+  const resolved = await service.resolveSessionOccurrence(schedSession, { today: '2026-11-23' });
+  check('resolveSessionOccurrence: returns the scheduled occurrence id', resolved === 'sched-gym_2026-11-23');
+
+  const doneOcc = await scheduleService.setOccurrenceStatus(resolved, OCCURRENCE_STATUS.DONE);
+  check('setOccurrenceStatus: marks linked occurrence done with completedAt', doneOcc.status === OCCURRENCE_STATUS.DONE && Boolean(doneOcc.completedAt));
+  check('resolveSessionOccurrence: returns null once occurrence is already done', (await service.resolveSessionOccurrence(schedSession, { today: '2026-11-23' })) === null);
+}
+
 {
   const { service, historyRepo } = await makeService();
   const first = await service.openSession('w1');
   const later = Date.now() + SESSION_WINDOW_SECONDS * 1000 + 60000;
   check('findOpenSession: an abandoned session (older than the window) is not offered', (await service.findOpenSession('w1', { now: later })) === null);
+  const abandoned = await service.listAbandonedSessions({ now: later });
+  check('listAbandonedSessions: surfaces the abandoned session for Fitness Resume/Discard', abandoned.length === 1 && abandoned[0].id === first.id);
   const second = await service.openSession('w1', { now: later });
   check('openSession: after the window a new session starts', second.id !== first.id && historyRepo.rows.size === 2);
-  check('openSession: the abandoned session is left alone, not deleted', historyRepo.rows.get(first.id)?.status === SESSION_STATUS.IN_PROGRESS);
+  check('openSession: the abandoned session is left alone until resumed or discarded', historyRepo.rows.get(first.id)?.status === SESSION_STATUS.IN_PROGRESS);
 
   let missing = false;
   try { await service.openSession('nope'); } catch { missing = true; }
@@ -221,8 +303,8 @@ async function makeService() {
 }
 
 if (failures.length > 0) {
-  console.error(`Phase 9 PACE 4a session: ${failures.length} of ${count} checks FAILED:`);
+  console.error(`Phase 9 PACE 4c session: ${failures.length} of ${count} checks FAILED:`);
   failures.forEach((f) => console.error(`  ✗ ${f}`));
   process.exit(1);
 }
-console.log(`Phase 9 PACE 4a session OK (${count} checks)`);
+console.log(`Phase 9 PACE 4c session OK (${count} checks)`);

@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { Capacitor } from '@capacitor/core';
 import { handleError } from '../lib/errors';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -6,9 +7,13 @@ import { useServices } from '../hooks/useServices';
 import { usePwa } from '../hooks/usePwa';
 import { useSyncStatus } from '../hooks/useSyncStatus';
 import { pipelineSteps } from '../lib/syncStatus.js';
+import { ANDROID_APK_URL } from '../config/appLinks';
 import { REMINDER_OFFSETS } from '../models/constants.js';
-import { REMINDER_SOUNDS, SNOOZE_OPTIONS } from '../lib/reminders.js';
+import { SNOOZE_OPTIONS } from '../lib/reminders.js';
 import { PERMISSION } from '../reminders/ReminderAdapter.js';
+import {
+  clearCustomAlarmSound, getCustomAlarmSound, saveCustomAlarmSound, stopAlarmAudio,
+} from '../reminders/alarmAudio.js';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Pill } from '../components/ui/Pill';
@@ -18,11 +23,10 @@ import { FormField } from '../components/ui/FormField';
 import { SegmentedControl } from '../components/ui/SegmentedControl';
 
 const USER_TYPES = ['Student', 'Professional', 'Other'];
-const SOUND_OPTIONS = REMINDER_SOUNDS.map((s) => ({ value: s, label: s[0].toUpperCase() + s.slice(1) }));
-const SNOOZE_CHOICES = SNOOZE_OPTIONS.map((m) => ({ value: m, label: `${m} min` }));
+const SNOOZE_CHOICES = SNOOZE_OPTIONS.map((m) => ({ value: m, label: `${m}m` }));
 const offsetLabel = (m) => (m === 0 ? 'At start time' : `${m} min before`);
 const PERMISSION_TEXT = {
-  [PERMISSION.GRANTED]: 'Enabled', [PERMISSION.DENIED]: 'Blocked', [PERMISSION.DEFAULT]: 'Not requested', [PERMISSION.UNSUPPORTED]: 'Not supported',
+  [PERMISSION.GRANTED]: 'Enabled', [PERMISSION.DENIED]: 'Blocked', [PERMISSION.DEFAULT]: 'Off', [PERMISSION.UNSUPPORTED]: 'Unsupported',
 };
 const PERMISSION_VARIANT = {
   [PERMISSION.GRANTED]: 'ok', [PERMISSION.DENIED]: 'warn', [PERMISSION.DEFAULT]: 'fit', [PERMISSION.UNSUPPORTED]: 'fit',
@@ -33,7 +37,7 @@ function Setting({ title, subtitle, checked, onChange }) {
     <div className="list-row">
       <div className="row-content">
         <b className="row-title">{title}</b>
-        <small className="row-subtitle">{subtitle}</small>
+        {subtitle && <small className="row-subtitle">{subtitle}</small>}
       </div>
       <ToggleSwitch checked={checked} onChange={onChange} aria-label={title} />
     </div>
@@ -46,6 +50,7 @@ export function Account() {
   const { reminders } = useServices();
   const pwa = usePwa();
   const steps = pipelineSteps(useSyncStatus());
+  const isNative = Capacitor.isNativePlatform();
   const [form, setForm] = useState({
     displayName: profile?.displayName || '', userType: profile?.userType || '',
     school: profile?.school || '', course: profile?.course || '', yearLevel: profile?.yearLevel || '',
@@ -55,34 +60,76 @@ export function Account() {
   const [reminderSettings, setReminderSettings] = useState(() => reminders.getSettings());
   const [permission, setPermission] = useState(() => reminders.getPermission());
   const [enabling, setEnabling] = useState(false);
+  const [customSoundName, setCustomSoundName] = useState('');
+  const [soundMsg, setSoundMsg] = useState('');
+  const audioInputRef = useRef(null);
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
   const flip = (k) => (v) => setPrefs({ ...prefs, [k]: v });
 
+  useEffect(() => {
+    let alive = true;
+    reminders.refreshPermission?.().then((p) => {
+      if (alive && p) setPermission(p);
+    });
+    getCustomAlarmSound().then((rec) => {
+      if (alive && rec?.name) setCustomSoundName(rec.name);
+    });
+    return () => {
+      alive = false;
+      stopAlarmAudio();
+    };
+  }, [reminders]);
+
   const save = async (e) => {
     e.preventDefault();
-    try { await updateProfile(form); setMsg('Profile saved.'); } catch { setMsg('Could not save. Please try again.'); }
+    try { await updateProfile(form); setMsg('Saved.'); } catch { setMsg('Could not save.'); }
   };
   const run = (fn, confirmText) => async () => {
     if (confirmText && !window.confirm(confirmText)) return;
     try { await fn(); } catch (e) { setMsg(handleError(e, 'account')); }
   };
 
-  // Changing any reminder setting re-syncs the schedule through ReminderService itself; we just reflect what comes back.
   const changeReminderSetting = async (changes) => setReminderSettings(await reminders.setSettings(changes));
   const enableNotifications = async () => {
     setEnabling(true);
     try { setPermission(await reminders.requestPermission()); } finally { setEnabling(false); }
   };
 
+  const handleImportAudio = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (file.size > 15 * 1024 * 1024) {
+      setSoundMsg('File must be under 15 MB.');
+      return;
+    }
+    try {
+      const saved = await saveCustomAlarmSound(file);
+      setCustomSoundName(saved.name);
+      setSoundMsg(`Imported: ${saved.name}`);
+      await changeReminderSetting({ sound: 'custom' });
+    } catch {
+      setSoundMsg('Unsupported audio file.');
+    }
+  };
+
+  const handleRemoveCustomAudio = async () => {
+    stopAlarmAudio();
+    await clearCustomAlarmSound();
+    setCustomSoundName('');
+    setSoundMsg('Using phone default alarm sound.');
+    await changeReminderSetting({ sound: 'default' });
+  };
+
   return (
-    <div className="stack">
-      {demo && <NoteBanner variant="info">Demo mode: Firebase keys are not set yet, so nothing is saved to the cloud.</NoteBanner>}
-      <h3 className="section-divider">Profile and sync</h3>
+    <div className="stack krono-fade-in">
+      {demo && <NoteBanner variant="info">Demo mode (local storage only).</NoteBanner>}
+      <h3 className="section-divider">Profile</h3>
       <div className="cols">
         <div className="stack">
           <Card>
             <div className="profile-head">
-              <span className="avatar avatar-lg">{profile?.photoURL ? <img src={profile.photoURL} alt="" referrerPolicy="no-referrer" /> : (form.displayName[0] || 'A')}</span>
+              <span className="avatar avatar-lg">{profile?.photoURL ? <img src={profile.photoURL} alt="" referrerPolicy="no-referrer" /> : (form.displayName[0] || 'K')}</span>
               <div>
                 <b>{profile?.displayName || 'Your name'}</b>
                 <small className="row-subtitle d-block">{user?.email}</small>
@@ -91,54 +138,73 @@ export function Account() {
             </div>
           </Card>
           <Card>
-            <h3 className="ui-card-header">Edit profile <span>Optional details</span></h3>
+            <h3 className="ui-card-header">Details</h3>
             <form className="form-grid" onSubmit={save}>
               <label className="form-field">Name<input value={form.displayName} onChange={set('displayName')} /></label>
-              <label className="form-field">User type
+              <label className="form-field">Role
                 <select value={form.userType} onChange={set('userType')}>
                   <option value="">Select</option>{USER_TYPES.map((t) => <option key={t}>{t}</option>)}
                 </select>
               </label>
-              <label className="form-field">School<input value={form.school} onChange={set('school')} /></label>
-              <label className="form-field">Course<input value={form.course} onChange={set('course')} /></label>
+              <label className="form-field">School / Organization<input value={form.school} onChange={set('school')} /></label>
+              <label className="form-field">Course / Program<input value={form.course} onChange={set('course')} /></label>
               <label className="form-field">Year level<input value={form.yearLevel} onChange={set('yearLevel')} /></label>
-              <Button type="submit" fullWidth>Save profile</Button>
+              <Button type="submit" fullWidth>Save</Button>
               {msg && <small role="status" className="form-msg">{msg}</small>}
             </form>
           </Card>
           <Card>
-            <h3 className="ui-card-header">Sync status <Pill variant={online ? 'ok' : 'warn'}>{online ? 'Online' : 'Offline'}</Pill></h3>
-            <div className="pipeline" role="group" aria-label={`Sync progress: ${steps.find((s) => s.state === 'current')?.label ?? 'Synced'}`}>
+            <h3 className="ui-card-header">Sync <Pill variant={online ? 'ok' : 'warn'}>{online ? 'Online' : 'Offline'}</Pill></h3>
+            <div className="pipeline" role="group">
               {steps.map((step) => (
-                <span key={step.label.split(' · ')[0]} className={`pipeline-step${step.state ? ` ${step.state}` : ''}`} aria-current={step.state === 'current' ? 'step' : undefined}>{step.label}</span>
+                <span key={step.label.split(' · ')[0]} className={`pipeline-step${step.state ? ` ${step.state}` : ''}`}>{step.label}</span>
               ))}
             </div>
-            <small className="row-subtitle d-block mt-2">Changes save on this device first, then sync when you are online.</small>
           </Card>
         </div>
         <div className="stack">
           <Card>
-            <h3 className="ui-card-header">Preferences</h3>
-            <Setting title="Dark theme" subtitle="Light is the default" checked={theme === 'dark'} onChange={toggleTheme} />
-            <Setting title="Route history" subtitle="Saved only when on" checked={prefs.routes} onChange={flip('routes')} />
-            <Setting title="Sample data" subtitle="Remove without touching your records" checked={prefs.sample} onChange={flip('sample')} />
+            <h3 className="ui-card-header">Appearance</h3>
+            <Setting title="Dark theme" checked={theme === 'dark'} onChange={toggleTheme} />
+            <Setting title="Save route history" checked={prefs.routes} onChange={flip('routes')} />
+            <Setting title="Sample data" checked={prefs.sample} onChange={flip('sample')} />
           </Card>
           <Card>
-            <h3 className="ui-card-header">Reminders</h3>
-            <Setting title="Enable reminders" subtitle="Turning off keeps your schedules" checked={reminderSettings.enabled} onChange={(v) => changeReminderSetting({ enabled: v })} />
+            <h3 className="ui-card-header">Alarms &amp; Reminders</h3>
+            <Setting title="Enable reminders" checked={reminderSettings.enabled} onChange={(v) => changeReminderSetting({ enabled: v })} />
             {reminderSettings.enabled && (
               <>
-                <Setting title="Also ring an alarm by default" subtitle="Android only · new schedules start with this" checked={reminderSettings.defaultUseAlarm} onChange={(v) => changeReminderSetting({ defaultUseAlarm: v })} />
+                <Setting title="Ring alarm by default" checked={reminderSettings.defaultUseAlarm} onChange={(v) => changeReminderSetting({ defaultUseAlarm: v })} />
                 <div className="form-grid mt-2">
-                  <FormField label="Default reminder time">
+                  <FormField label="Lead time">
                     <select value={reminderSettings.defaultOffsetMinutes} onChange={(e) => changeReminderSetting({ defaultOffsetMinutes: Number(e.target.value) })}>
                       {REMINDER_OFFSETS.map((m) => <option key={m} value={m}>{offsetLabel(m)}</option>)}
                     </select>
                   </FormField>
-                  <FormField as="div" label="Sound">
-                    <SegmentedControl options={SOUND_OPTIONS} value={reminderSettings.sound} onChange={(sound) => changeReminderSetting({ sound })} ariaLabel="Sound" />
+                  <FormField as="div" label="Alarm sound">
+                    <div className="d-flex flex-wrap gap-2 align-items-center">
+                      <input
+                        ref={audioInputRef}
+                        type="file"
+                        accept="audio/*"
+                        hidden
+                        onChange={handleImportAudio}
+                      />
+                      <Button type="button" variant="secondary" onClick={() => audioInputRef.current?.click()}>
+                        {customSoundName ? 'Replace sound' : 'Import sound'}
+                      </Button>
+                      {customSoundName && (
+                        <Button type="button" variant="ghost" onClick={handleRemoveCustomAudio}>
+                          Use default
+                        </Button>
+                      )}
+                    </div>
+                    <small className="row-subtitle d-block mt-1">
+                      {customSoundName ? `Active: ${customSoundName}` : 'Active: Phone default alarm tone'}
+                    </small>
+                    {soundMsg && <small role="status" className="form-msg d-block mt-1">{soundMsg}</small>}
                   </FormField>
-                  <FormField as="div" label="Snooze length">
+                  <FormField as="div" label="Snooze">
                     <SegmentedControl options={SNOOZE_CHOICES} value={reminderSettings.snoozeMinutes} onChange={(snoozeMinutes) => changeReminderSetting({ snoozeMinutes })} ariaLabel="Snooze length" />
                   </FormField>
                 </div>
@@ -147,35 +213,42 @@ export function Account() {
             <div className="list-row mt-2">
               <div className="row-content">
                 <b className="row-title">Notifications</b>
-                <small className="row-subtitle">Needed to show reminders while the app is open</small>
               </div>
               <Pill variant={PERMISSION_VARIANT[permission]}>{PERMISSION_TEXT[permission]}</Pill>
             </div>
             <Button fullWidth variant="secondary" disabled={enabling || permission === PERMISSION.GRANTED || permission === PERMISSION.UNSUPPORTED} onClick={enableNotifications}>
-              {enabling ? 'Requesting…' : 'Enable notifications'}
+              {enabling ? 'Requesting…' : 'Allow notifications'}
             </Button>
           </Card>
-          {(pwa.installed || pwa.canInstall || pwa.iosHint || pwa.offlineReady) && (
+          {!isNative && (
             <Card>
-              <h3 className="ui-card-header">App {pwa.offlineReady && <Pill variant="ok">Works offline</Pill>}</h3>
-              {pwa.installed && <small className="row-subtitle d-block">Installed on this device.</small>}
-              {pwa.canInstall && (
-                <>
-                  <small className="row-subtitle d-block mb-2">Install the app for a faster start and its own window. Your data stays on this device.</small>
-                  <Button fullWidth onClick={pwa.install}>Install app</Button>
-                </>
-              )}
-              {pwa.iosHint && <small className="row-subtitle d-block">To install on iPhone or iPad, tap Share, then Add to Home Screen.</small>}
+              <h3 className="ui-card-header">
+                Android &amp; Web App {pwa.offlineReady && <Pill variant="ok">Offline ready</Pill>}
+              </h3>
+              <div className="stack">
+                <a
+                  href={ANDROID_APK_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn btn-primary w-100"
+                >
+                  Download KRONO Android App (.APK)
+                </a>
+                <small className="row-subtitle">
+                  Full native build with Home-Screen Widget, Alarm Sound Channel &amp; Custom Icon.
+                </small>
+                {pwa.canInstall && (
+                  <Button fullWidth variant="secondary" onClick={pwa.install}>
+                    Install Web App (PWA)
+                  </Button>
+                )}
+              </div>
             </Card>
           )}
-          <h3 className="section-divider">Security</h3>
           <Card>
             <Button fullWidth disabled={!online} onClick={run(signOut)}>Sign out</Button>
-            <small className="row-subtitle d-block mt-2">
-              Sign out and account switching need internet so your local data stays protected.
-            </small>
             <hr className="my-3" />
-            <Button fullWidth variant="secondary" disabled={!online} onClick={run(deleteAccount, 'Delete your account and stored data? This cannot be undone.')}>Delete account</Button>
+            <Button fullWidth variant="secondary" disabled={!online} onClick={run(deleteAccount, 'Delete your account and all data?')}>Delete account</Button>
           </Card>
         </div>
       </div>

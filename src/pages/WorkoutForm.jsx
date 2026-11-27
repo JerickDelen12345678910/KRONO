@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useServices } from '../hooks/useServices';
 import { EXERCISE_CATEGORIES } from '../models/constants.js';
-import { FITNESS_DISCLAIMER } from '../lib/exerciseLibrary.js';
 import {
   addExercise, deleteMessage, draftFromWorkout, draftToInput, draftToNewWorkout, emptyDraft, exerciseCountLabel, moveItem, pickerResults,
   removeItem, updateItem, validateDraft,
@@ -20,8 +19,6 @@ const CATEGORY_OPTIONS = EXERCISE_CATEGORIES.map((c) => ({ value: c, label: c })
 const PICKER_OPTIONS = [{ value: ALL, label: ALL }, ...CATEGORY_OPTIONS];
 const NO_ERRORS = { errors: {}, itemErrors: {} };
 
-// Create or edit one workout: name, category, notes, and the exercises (added from the built-in library, then edited per exercise).
-// Saving goes through WorkoutService; the form logic is pure (src/lib/workoutForm.js). Deleting keeps finished sessions in history.
 export function WorkoutForm() {
   const { id } = useParams();
   const editing = Boolean(id);
@@ -29,12 +26,17 @@ export function WorkoutForm() {
   const [params] = useSearchParams();
   const { workout } = useServices();
 
-  // /fitness/workouts/new?exercise=<id> starts with that exercise (the "Add to workout" action on the exercise detail).
   const [draft, setDraft] = useState(() => {
     const exerciseId = params.get('exercise');
-    return emptyDraft({ exercise: !editing && exerciseId ? workout.getExercise(exerciseId) || null : null });
+    const preselected = !editing && exerciseId ? workout.getExercise(exerciseId) || null : null;
+    const base = emptyDraft({ exercise: preselected });
+    if (preselected && !base.name.trim()) {
+      base.name = `${preselected.name} Routine`;
+      if (preselected.category) base.category = preselected.category;
+    }
+    return base;
   });
-  const [saved, setSaved] = useState(null);   // the stored workout being edited: its version (for conflicts) and scheduleId (for the delete text)
+  const [saved, setSaved] = useState(null);
   const [loading, setLoading] = useState(editing);
   const [missing, setMissing] = useState('');
   const [submitted, setSubmitted] = useState(false);
@@ -51,7 +53,7 @@ export function WorkoutForm() {
       .then((list) => {
         if (!alive) return;
         const w = list.find((x) => x.id === id);
-        if (w) { setDraft(draftFromWorkout(w)); setSaved(w); } else setMissing('That workout could not be found. It may have been deleted.');
+        if (w) { setDraft(draftFromWorkout(w)); setSaved(w); } else setMissing('Workout not found.');
         setLoading(false);
       })
       .catch((err) => { if (alive) { setMissing(handleError(err, 'workout-form')); setLoading(false); } });
@@ -63,7 +65,6 @@ export function WorkoutForm() {
     ...(query.trim() ? { query: query.trim() } : {}),
   })), [workout, pickCategory, query]);
 
-  // After the first Save attempt, errors update live as the user fixes the fields.
   const { errors, itemErrors } = submitted ? validateDraft(draft) : NO_ERRORS;
   const invalid = (bad) => (bad ? { 'aria-invalid': true } : {});
   const setField = (key) => (e) => setDraft((d) => ({ ...d, [key]: e.target.value }));
@@ -72,22 +73,33 @@ export function WorkoutForm() {
   const add = (exerciseId) => {
     const exercise = workout.getExercise(exerciseId);
     if (!exercise) return;
-    setDraft((d) => addExercise(d, exercise));
-    setNotice(`Added ${exercise.name}.`);
+    setDraft((d) => {
+      const updated = addExercise(d, exercise);
+      if (!updated.name.trim()) {
+        updated.name = `${exercise.name} Routine`;
+      }
+      return updated;
+    });
+    setNotice(`Added ${exercise.name}`);
   };
 
   const save = async (e) => {
     e.preventDefault();
+    const preparedDraft = {
+      ...draft,
+      name: draft.name.trim() || (draft.items[0] ? `${draft.items[0].name} Routine` : `${draft.category || 'Custom'} Workout`),
+    };
+    setDraft(preparedDraft);
     setSubmitted(true);
     setFormError('');
-    if (!validateDraft(draft).valid) return;
+    if (!validateDraft(preparedDraft).valid) return;
     setBusy(true);
     try {
-      if (editing) await workout.update(id, draftToInput(draft), { expectedVersion: saved?.version });
-      else await workout.create(draftToNewWorkout(draft));
+      if (editing) await workout.update(id, draftToInput(preparedDraft), { expectedVersion: saved?.version });
+      else await workout.create(draftToNewWorkout(preparedDraft));
       navigate('/fitness/workouts');
     } catch (err) {
-      if (isAppError(err) && err.code === ERROR_CODE.VALIDATION) setFormError(Object.values(err.details.errors ?? {})[0] ?? 'Some fields need attention.');
+      if (isAppError(err) && err.code === ERROR_CODE.VALIDATION) setFormError(Object.values(err.details.errors ?? {})[0] ?? 'Check highlighted fields.');
       else setFormError(handleError(err, 'workout-form'));
       setBusy(false);
     }
@@ -103,7 +115,7 @@ export function WorkoutForm() {
     return (
       <div className="stack">
         <NoteBanner>{missing}</NoteBanner>
-        <Button variant="secondary" onClick={() => navigate('/fitness/workouts')}>Back to My workouts</Button>
+        <Button variant="secondary" onClick={() => navigate('/fitness/workouts')}>Back</Button>
       </div>
     );
   }
@@ -111,29 +123,28 @@ export function WorkoutForm() {
   const count = draft.items.length;
 
   return (
-    <form className="stack" onSubmit={save} noValidate>
+    <form className="stack krono-fade-in" onSubmit={save} noValidate>
       <h3 className="section-divider">{editing ? 'Edit workout' : 'New workout'}</h3>
       {formError && <NoteBanner>{formError}</NoteBanner>}
-      {Object.keys(errors).length > 0 && <NoteBanner>Please fix the highlighted fields.</NoteBanner>}
 
       <div className="cols">
         <div className="stack">
           <Card variant="fit" header="Details">
             <div className="form-grid">
-              <FormField label="Name" error={errors.name}>
+              <FormField label="Workout name (auto-fills from exercise)" error={errors.name}>
                 <input value={draft.name} onChange={setField('name')} placeholder="e.g. Upper body" maxLength={80} {...invalid(errors.name)} />
               </FormField>
               <FormField as="div" label="Category" error={errors.category}>
                 <FilterChips label="Workout category" options={CATEGORY_OPTIONS} value={draft.category} onChange={(category) => setDraft((d) => ({ ...d, category }))} />
               </FormField>
               <FormField label="Notes (optional)">
-                <textarea rows={3} value={draft.notes} onChange={setField('notes')} maxLength={500} />
+                <textarea rows={2} value={draft.notes} onChange={setField('notes')} maxLength={500} />
               </FormField>
             </div>
           </Card>
 
           <Card variant="fit" header={<>Exercises <span>{exerciseCountLabel(count)}</span></>}>
-            {count === 0 && <p className="empty-hint">No exercises yet. Add some from the list.</p>}
+            {count === 0 && <p className="empty-hint">Pick exercises from the list to add sets, reps &amp; rest.</p>}
             {errors.items && <p className="empty-hint" role="alert">{errors.items}</p>}
             {count > 0 && (
               <ol className="workout-items">
@@ -145,16 +156,16 @@ export function WorkoutForm() {
                       <div className="workout-item-head">
                         <b>{index + 1}. {item.name}</b>
                         <div className="workout-item-actions">
-                          <Button variant="ghost" size="sm" disabled={index === 0} aria-label={`Move ${item.name} up`} onClick={() => setDraft((d) => moveItem(d, item.key, -1))}>Up</Button>
-                          <Button variant="ghost" size="sm" disabled={index === count - 1} aria-label={`Move ${item.name} down`} onClick={() => setDraft((d) => moveItem(d, item.key, 1))}>Down</Button>
-                          <Button variant="ghost" size="sm" aria-label={`Remove ${item.name}`} onClick={() => setDraft((d) => removeItem(d, item.key))}>Remove</Button>
+                          <Button variant="ghost" size="sm" disabled={index === 0} onClick={() => setDraft((d) => moveItem(d, item.key, -1))}>Up</Button>
+                          <Button variant="ghost" size="sm" disabled={index === count - 1} onClick={() => setDraft((d) => moveItem(d, item.key, 1))}>Down</Button>
+                          <Button variant="ghost" size="sm" onClick={() => setDraft((d) => removeItem(d, item.key))}>Remove</Button>
                         </div>
                       </div>
                       <div className="workout-fields">
                         <FormField label="Sets" error={e.sets}>
                           <input type="number" inputMode="numeric" min="1" max="50" value={item.sets} onChange={setItem(item.key, 'sets')} {...invalid(e.sets)} />
                         </FormField>
-                        <FormField label="Measured in">
+                        <FormField label="Unit">
                           <select value={item.mode} onChange={setItem(item.key, 'mode')}>
                             <option value="reps">Reps</option>
                             <option value="time">Seconds</option>
@@ -166,7 +177,7 @@ export function WorkoutForm() {
                             value={timed ? item.durationSec : item.reps} onChange={setItem(item.key, timed ? 'durationSec' : 'reps')} {...invalid(e.amount)}
                           />
                         </FormField>
-                        <FormField label="Rest (seconds)" error={e.restSec}>
+                        <FormField label="Rest (sec)" error={e.restSec}>
                           <input type="number" inputMode="numeric" min="0" max="3600" value={item.restSec} onChange={setItem(item.key, 'restSec')} {...invalid(e.restSec)} />
                         </FormField>
                       </div>
@@ -179,15 +190,15 @@ export function WorkoutForm() {
         </div>
 
         <div className="stack">
-          <Card variant="fit" header="Add exercises">
+          <Card variant="fit" header="Browse & Add">
             <div className="form-grid">
-              <FormField label="Search the library">
-                <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Name or muscle, e.g. plank" maxLength={60} autoComplete="off" />
+              <FormField label="Search exercise">
+                <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="e.g. plank, squat" maxLength={60} autoComplete="off" />
               </FormField>
               <FilterChips label="Exercise category" options={PICKER_OPTIONS} value={pickCategory} onChange={setPickCategory} />
             </div>
             <div className="workout-picker">
-              {results.rows.length === 0 && <p className="empty-hint">No exercises match.</p>}
+              {results.rows.length === 0 && <p className="empty-hint">No matches.</p>}
               {results.rows.map((r) => (
                 <Row
                   key={r.id}
@@ -195,19 +206,17 @@ export function WorkoutForm() {
                   barColor="fit"
                   title={r.title}
                   subtitle={r.subtitle}
-                  tag={<Button variant="secondary" size="sm" aria-label={`Add ${r.title}`} onClick={() => add(r.id)}>Add</Button>}
+                  tag={<Button variant="secondary" size="sm" onClick={() => add(r.id)}>+ Add</Button>}
                 />
               ))}
             </div>
-            {results.more > 0 && <p className="fit-note mt-3">{`Showing ${results.rows.length} of ${results.rows.length + results.more}. Search or pick a category to narrow the list.`}</p>}
-            <p className="fit-note mt-3" role="status">{notice}</p>
+            {notice && <p className="fit-note mt-2" role="status">{notice}</p>}
           </Card>
-          <small className="fit-note">{FITNESS_DISCLAIMER}</small>
         </div>
       </div>
 
       <div className="form-actions">
-        <Button type="submit" disabled={busy}>{busy ? 'Saving…' : editing ? 'Save changes' : 'Save workout'}</Button>
+        <Button type="submit" disabled={busy}>{busy ? 'Saving…' : 'Save workout'}</Button>
         <Button variant="secondary" onClick={() => navigate('/fitness/workouts')}>Cancel</Button>
         {editing && <Button variant="secondary" onClick={remove}>Delete</Button>}
       </div>

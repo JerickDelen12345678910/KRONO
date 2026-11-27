@@ -1,7 +1,6 @@
 import { Fragment, useEffect, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useServices } from '../hooks/useServices';
-import { FITNESS_DISCLAIMER, RECOVERY_REMINDERS } from '../lib/exerciseLibrary.js';
 import { backSearch, exerciseDetail } from '../lib/exerciseView.js';
 import { itemsWithExercise } from '../lib/workoutForm.js';
 import { handleError } from '../lib/errors';
@@ -13,8 +12,6 @@ import { Pill } from '../components/ui/Pill';
 
 const NEW_WORKOUT = 'new';
 
-// One built-in exercise: what it is, how to do it, and general warm-up/recovery reminders. General information only.
-// "Add to workout" starts a new workout with it, or appends it to one of the user's workouts.
 export function ExerciseDetail() {
   const { id } = useParams();
   const { workout } = useServices();
@@ -30,7 +27,7 @@ export function ExerciseDetail() {
 
   useEffect(() => {
     let alive = true;
-    workout.list().then((list) => { if (alive) setWorkouts(list); }).catch((e) => handleError(e, 'exercise-detail'));   // optional: without it only "A new workout" is offered
+    workout.list().then((list) => { if (alive) setWorkouts(list); }).catch((e) => handleError(e, 'exercise-detail'));
     return () => { alive = false; };
   }, [workout]);
 
@@ -50,15 +47,14 @@ export function ExerciseDetail() {
   };
 
   return (
-    <div>
+    <div className="krono-fade-in">
       <div className="mb-3">
-        <Button variant="ghost" size="sm" leftIcon="left" onClick={back}>Exercise library</Button>
+        <Button variant="ghost" size="sm" leftIcon="left" onClick={back}>Exercises</Button>
       </div>
 
       {!view ? (
-        <Card variant="fit" header="Exercise not found">
-          <p className="empty-hint">This exercise is not in the library.</p>
-          <Button variant="secondary" size="sm" onClick={back}>Back to the library</Button>
+        <Card variant="fit" header="Not found">
+          <Button variant="secondary" size="sm" onClick={back}>Back</Button>
         </Card>
       ) : (
         <section aria-labelledby="exdetail-heading">
@@ -76,31 +72,25 @@ export function ExerciseDetail() {
                   ))}
                 </dl>
               </Card>
-              <Card variant="fit" header={<>How to do it <span>{view.stepsLabel}</span></>}>
+              <Card variant="fit" header={<>Steps <span>{view.stepsLabel}</span></>}>
                 <ol className="exercise-steps">
                   {view.steps.map((step, i) => <li key={`${i}-${step}`}>{step}</li>)}
                 </ol>
               </Card>
             </div>
             <div className="stack">
-              <Card variant="fit" header="Add to a workout">
+              <Card variant="fit" header="Add to workout">
                 {addError && <NoteBanner className="mb-3">{addError}</NoteBanner>}
                 <div className="form-grid">
-                  <FormField label="Workout">
+                  <FormField label="Routine">
                     <select value={target} onChange={(e) => setTarget(e.target.value)}>
-                      <option value={NEW_WORKOUT}>A new workout</option>
-                      {workouts.map((w) => <option key={w.id} value={w.id}>{w.name || 'Untitled workout'}</option>)}
+                      <option value={NEW_WORKOUT}>New workout</option>
+                      {workouts.map((w) => <option key={w.id} value={w.id}>{w.name || 'Workout'}</option>)}
                     </select>
                   </FormField>
-                  <Button variant="secondary" fullWidth disabled={busy} onClick={addToWorkout}>{busy ? 'Adding…' : 'Add to workout'}</Button>
+                  <Button variant="fit" fullWidth disabled={busy} onClick={addToWorkout}>{busy ? 'Adding…' : 'Add to workout'}</Button>
                 </div>
               </Card>
-              <Card header="Warm-up and recovery">
-                <ul className="exercise-steps">
-                  {RECOVERY_REMINDERS.map((tip) => <li key={tip}>{tip}</li>)}
-                </ul>
-              </Card>
-              <small className="fit-note">{FITNESS_DISCLAIMER}</small>
             </div>
           </div>
         </section>

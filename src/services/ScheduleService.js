@@ -1,6 +1,5 @@
 import { OCCURRENCE_STATUS } from '../models/constants.js';
-import { nowIso } from '../models/common.js';
-import { toLocalDate } from '../models/common.js';
+import { nowIso, toLocalDate } from '../models/common.js';
 import { createOccurrence } from '../models/schedule.js';
 import { occurrenceDates, scheduleWindow } from '../lib/recurrence.js';
 import { AppError, ERROR_CODE } from '../lib/errors.js';
@@ -8,11 +7,6 @@ import { AppError, ERROR_CODE } from '../lib/errors.js';
 const byDateTime = (a, b) => `${a.date}${a.startTime}`.localeCompare(`${b.date}${b.startTime}`);
 
 export class ScheduleService {
-  /**
-   * `today` is injectable so tests (and a future "pretend date") are deterministic.
-   * `onChange(change)` is an optional hook called AFTER a schedule or occurrence was saved (used to keep reminders in step);
-   * this service knows nothing about what it does. It is never awaited and a failing hook can never break saving.
-   */
   constructor({ schedules, occurrences }, { today = () => toLocalDate(), onChange } = {}) {
     this.schedules = schedules; this.occurrences = occurrences; this.today = today; this.onChange = onChange;
   }
@@ -35,14 +29,6 @@ export class ScheduleService {
     return schedule;
   }
 
-  /**
-   * Make the stored occurrences match the schedule's rule. Idempotent, safe to call again.
-   *  - missing dates are created; dates that were removed earlier are restored
-   *  - scheduled occurrences that no longer match are removed, but only upcoming ones
-   *    (one-time schedules move wholly); done / skipped / past ones are never touched
-   *  - upcoming matching occurrences get the new start/end time
-   * Returns { created, restored, updated, removed, kept }.
-   */
   async syncOccurrences(scheduleId, { today = this.today() } = {}) {
     const s = await this.schedules.require(scheduleId);
     const oneTime = !s.repeat || s.repeat.type === 'none';
@@ -70,9 +56,10 @@ export class ScheduleService {
       if (o.deleted || target.has(o.date)) continue;
       if (editable(o)) { await this.occurrences.remove(o.id); sum.removed += 1; } else sum.kept += 1;
     }
-    this.changed({ type: 'occurrences', scheduleId });   // create() and update() both end here
+    this.changed({ type: 'occurrences', scheduleId });
     return sum;
   }
+
   get(id) { return this.schedules.get(id); }
 
   /** list({ category, search }) */
@@ -94,6 +81,20 @@ export class ScheduleService {
     return removed;
   }
 
+  /** Deletes ALL schedules, occurrences, and cancels all pending reminders. */
+  async removeAll() {
+    const [allSchedules, allOccurrences] = await Promise.all([
+      this.schedules.list(),
+      this.occurrences.list(),
+    ]);
+    await Promise.all([
+      ...allOccurrences.map((o) => this.occurrences.remove(o.id)),
+      ...allSchedules.map((s) => this.schedules.remove(s.id)),
+    ]);
+    this.changed({ type: 'clear' });
+    return { schedules: allSchedules.length, occurrences: allOccurrences.length };
+  }
+
   /** Safe to call repeatedly for the same schedule + date (deterministic id, no duplicates). */
   async addOccurrence(scheduleId, date) {
     const schedule = await this.schedules.require(scheduleId);
@@ -111,10 +112,6 @@ export class ScheduleService {
     return rows.sort(byDateTime);
   }
 
-  /**
-   * History = done + skipped occurrences, newest first. listHistory({ from, to, category, limit })
-   * Each row is the occurrence plus its schedule's `title` and `category`; deleted schedules are left out.
-   */
   async listHistory({ from, to, category, limit } = {}) {
     const [schedules, rows] = await Promise.all([this.schedules.list(), this.listOccurrences({ from, to })]);
     const byId = new Map(schedules.map((s) => [s.id, s]));

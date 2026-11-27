@@ -17,6 +17,7 @@ export function createSchedule(o = {}) {
   return {
     ...createBase(), title: '', category, description: '', date: null, startTime: '', endTime: '', location: '',
     color: CATEGORY_COLOR[category], priority: null, academicPeriodId: null, subjectId: null, linkedWorkoutId: null,
+    destinationId: null,
     ...o, reminder: createReminder(o.reminder), repeat: createRepeatRule(o.repeat),
   };
 }
@@ -40,6 +41,7 @@ export function validateSchedule(s) {
   else if (isTime(s.startTime) && s.endTime <= s.startTime) e.endTime = 'End time must be after the start time.';
   if (s.priority != null && !PRIORITY.includes(s.priority)) e.priority = 'Invalid priority.';
   if (!SCHEDULE_COLORS.includes(s.color)) e.color = 'Invalid color.';
+  if (s.destinationId != null && typeof s.destinationId !== 'string') e.destinationId = 'Invalid destination.';
 
   const r = s.repeat ?? {};
   if (r.type === REPEAT_TYPE.NONE) {

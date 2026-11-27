@@ -1,10 +1,13 @@
-// scripts/check-dashboard-view.mjs — Phase 11 PACE 1: the pure Home dashboard logic (src/lib/dashboardView.js) and the new
-// ReminderService.listScheduled(). Runs in plain Node, local clock, no storage. "Now" is fixed: Thursday 2026-11-19, 07:35.
+// scripts/check-dashboard-view.mjs — Phase 11 PACE 1 + Phase 10 PACE 3: the pure Home dashboard logic (src/lib/dashboardView.js),
+// travel schedule helpers (src/lib/mapView.js), scheduleForm destinationId, and ReminderService.listScheduled().
+// Runs in plain Node, local clock, no storage. "Now" is fixed: Thursday 2026-11-19, 07:35.
 import { ACTIVITY_STATUS, ACTIVITY_TYPE, MODULE, OCCURRENCE_STATUS } from '../src/models/constants.js';
 import { createActivity } from '../src/models/activity.js';
 import { durationLabel } from '../src/lib/fitness.js';
+import { draftFromSchedule, draftToInput, emptyDraft } from '../src/lib/scheduleForm.js';
+import { mapRouteLink, travelScheduleView } from '../src/lib/mapView.js';
 import {
-  agoLabel, kpiCards, mergePlanned, nextUp, routeFor, startTarget, syncCard, todayRows, untilLabel,
+  agoLabel, kpiCards, leaveForCard, mergePlanned, nextUp, routeFor, startTarget, syncCard, todayRows, untilLabel, upcomingTravel,
 } from '../src/lib/dashboardView.js';
 import { ReminderService } from '../src/services/ReminderService.js';
 
@@ -144,9 +147,39 @@ check('sync: syncing', same(sc({ running: true, pending: 3 }), { pill: { variant
 check('sync: waiting online', same([sc({ pending: 3 }).pill, sc({ pending: 3 }).title, sc({ pending: 3 }).subtitle], [{ variant: 'warn', label: 'Waiting' }, '3 changes waiting to sync', 'They will sync automatically']) && sc({ pending: 1 }).title === '1 change waiting to sync');
 check('sync: waiting after a failed attempt says so', sc({ pending: 2, ok: false, lastError: new Error('x') }).subtitle === 'The last attempt failed. It will retry.');
 check('sync: offline with changes waiting', same([sc({ pending: 2 }, false).pill, sc({ pending: 2 }, false).title, sc({ pending: 2 }, false).subtitle], [{ variant: 'warn', label: 'Offline' }, 'Working offline', '2 changes will sync when you’re back online']));
-check('sync: offline with nothing waiting is never called Synced', sc({ pending: 0, lastSyncedAt: iso(2) }, false).pill.label === 'Offline' && sc({ pending: 0 }, false).title === 'All changes saved');
+check('sync: offline with nothing waiting is never called Synced', sc({ pending: 0, lastSyncedAt: iso(2) }, false).pill.label === 'Offline' && sc({ pending: 0, lastSyncedAt: iso(2) }, false).title === 'All changes saved');
 check('sync: unknown pending is never called Synced', sc({ pending: null }).pill.label === 'Checking' && sc({ pending: null }).pill.label !== 'Synced' && sc(undefined).pill.label === 'Checking');
 check('sync: status is always a word', [sc({ pending: 0 }), sc({ pending: 4 }), sc({ running: true }), sc({ pending: 4 }, false), sc({})].every((c) => c.pill.label.length > 0));
+
+// ---- Phase 10 PACE 3: travel schedule + Leave for card ----
+check('scheduleForm: destinationId round-trips', (() => {
+  const blank = emptyDraft();
+  const edited = draftFromSchedule({ title: 'Port trip', category: 'Travel', destinationId: 'dest-1', date: '2026-11-19', startTime: '08:00', endTime: '09:00' });
+  const input = draftToInput(edited);
+  return blank.destinationId === null && edited.destinationId === 'dest-1' && input.destinationId === 'dest-1';
+})());
+
+const pier = { id: 'dest-pier', name: 'Calapan Pier', address: 'San Antonio, Calapan', latitude: 13.43, longitude: 121.19 };
+const travelSched = { id: 'sch-trip', title: 'Ferry to Batangas', category: 'Travel', destinationId: 'dest-pier', startTime: '08:00' };
+const travelAct = act({ id: 'act-trip', title: 'Ferry to Batangas', category: 'Travel', startsAt: at(8, 0), refs: { scheduleId: 'sch-trip' } });
+
+check('mapRouteLink: builds deep link with dest and arrive', mapRouteLink({ destinationId: 'dest-pier', arriveBy: '08:00' }) === '/map?dest=dest-pier&arrive=08%3A00' && mapRouteLink() === '/map');
+
+const tvLive = travelScheduleView({ schedule: travelSched, destination: pier, routeEstimate: { durationSeconds: 25 * 60, distanceMeters: 4200 } });
+check('travelScheduleView: computes Leave at when route estimate is present', tvLive.leaveText === 'Leave at 7:35 AM' && tvLive.subtitle === '25 min · 4.2 km · To arrive by 8:00 AM' && tvLive.mapHref === '/map?dest=dest-pier&arrive=08%3A00');
+
+const tvOffline = travelScheduleView({ schedule: travelSched, destination: pier, routeEstimate: null });
+check('travelScheduleView: falls back cleanly without route estimate', tvOffline.leaveText === null && tvOffline.destinationName === 'Calapan Pier');
+
+const upTrip = upcomingTravel([ds, travelAct], [travelSched], [pier], NOW);
+check('upcomingTravel: joins upcoming Travel activity with schedule and destination', upTrip?.title === 'Calapan Pier' && upTrip?.destination?.id === 'dest-pier' && upTrip?.mapRoute === '/map?dest=dest-pier&arrive=08%3A00');
+check('upcomingTravel: returns null when no travel activity is upcoming', upcomingTravel([ds, algo], [travelSched], [pier], NOW) === null);
+
+const lfLive = leaveForCard(upTrip, { durationSeconds: 25 * 60, distanceMeters: 4200 }, true);
+check('leaveForCard: shows Leave for <place> and Leave at pill when route estimate is available', lfLive.heading === 'Leave for Calapan Pier' && lfLive.pill.label === 'Leave at 7:35 AM' && lfLive.title === '25 min (4.2 km)');
+
+const lfOffline = leaveForCard(upTrip, null, false);
+check('leaveForCard: offline fallback shows Starts time and offline subtitle', lfOffline.pill.variant === 'warn' && lfOffline.pill.label === 'Starts 8:00 AM' && lfOffline.subtitle.includes('Offline'));
 
 // ---- ReminderService.listScheduled ----
 // the method is tested on its own (not through the constructor, which validates the adapter's whole interface)

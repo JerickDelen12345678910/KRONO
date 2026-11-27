@@ -1,7 +1,8 @@
 // src/lib/session.js
-// Phase 9 PACE 4a — pure logic of the workout session screen (no React, no storage): the plan snapshot a session
-// starts with, logging / undoing / skipping sets, progress, what "Finish" saves, and the texts of the screen.
-// pages/WorkoutSession.jsx only renders what this returns; scripts/check-session.mjs tests it.
+// Phase 9 PACE 4a + 4b — pure logic of the workout session screen (no React, no storage): the plan snapshot a session
+// starts with, logging / undoing / skipping sets, progress, pause / resume, active-time counter, rest timer, what "Finish"
+// saves, and the texts of the screen. pages/WorkoutSession.jsx only renders what this returns; scripts/check-session.mjs
+// tests it.
 //
 // A session lives in `exerciseHistory` (src/models/workout.js `createWorkoutSession`). Its `entries` are one per exercise:
 //   { exerciseId, name, status: 'pending'|'completed'|'skipped', sets: [{ reps, durationSec }], plan }
@@ -10,6 +11,7 @@
 // the sets the user logged; a logged set records the planned reps / seconds (there is no per-set editing yet).
 //
 // Every function returns NEW data; an impossible action returns the SAME array it was given (callers can compare).
+import { nowIso } from '../models/common.js';
 import { ENTRY_STATUS, SESSION_STATUS } from '../models/constants.js';
 import { getExerciseById } from './exerciseLibrary.js';
 import { restLabel, setsLabel } from './fitness.js';
@@ -18,9 +20,8 @@ const { PENDING, COMPLETED, SKIPPED } = ENTRY_STATUS;
 const OPEN_STATUSES = [SESSION_STATUS.IN_PROGRESS, SESSION_STATUS.PAUSED];
 
 /**
- * PACE 4a has no timer yet (PACE 4b adds the real active-time counter), so active time is ESTIMATED as the time since the
- * session started, never more than this. The same limit decides whether an unfinished session can still be continued:
- * an older one is treated as abandoned (left alone, not reused). PACE 4b replaces both with the real counter.
+ * Maximum active time counted for a single session (3 hours). The same window decides whether an unfinished session is
+ * continued automatically by "Start workout" or surfaced as an abandoned session on the Fitness dashboard.
  */
 export const SESSION_WINDOW_SECONDS = 3 * 60 * 60;
 
@@ -36,11 +37,68 @@ export function elapsedSeconds(startedAt, nowMs = Date.now()) {
   return Math.min(SESSION_WINDOW_SECONDS, Math.max(0, Math.round((nowMs - start) / 1000)));
 }
 
+/**
+ * Active workout seconds excluding explicit pauses (`pausedSeconds` + any current pause from `pausedAt`).
+ * Rest timers between sets count as active workout time; only explicit pauses are subtracted.
+ */
+export function activeSessionSeconds(session, nowMs = Date.now()) {
+  if (!session) return 0;
+  if (session.status === SESSION_STATUS.COMPLETED && Number.isFinite(session.activeSeconds) && session.activeSeconds >= 0) {
+    return Math.min(SESSION_WINDOW_SECONDS, Math.round(session.activeSeconds));
+  }
+  const start = toMs(session.startedAt);
+  if (start == null) return 0;
+  const pausedTotal = Math.max(0, Number.isFinite(session.pausedSeconds) ? session.pausedSeconds : 0);
+  let endMs = nowMs;
+  if (session.status === SESSION_STATUS.PAUSED) {
+    const pausedAt = toMs(session.pausedAt);
+    if (pausedAt != null) endMs = pausedAt;
+  } else if (session.status === SESSION_STATUS.COMPLETED) {
+    const endedAt = toMs(session.endedAt);
+    if (endedAt != null) endMs = endedAt;
+  }
+  const raw = Math.round((endMs - start) / 1000 - pausedTotal);
+  return Math.min(SESSION_WINDOW_SECONDS, Math.max(0, raw));
+}
+
+/** Formats non-negative seconds as MM:SS (or H:MM:SS at 1 hour and above). */
+export function formatClock(totalSeconds) {
+  const safe = Math.max(0, Math.floor(Number.isFinite(totalSeconds) ? totalSeconds : 0));
+  const hours = Math.floor(safe / 3600);
+  const mins = Math.floor((safe % 3600) / 60);
+  const secs = safe % 60;
+  const pad = (n) => String(n).padStart(2, '0');
+  return hours > 0 ? `${hours}:${pad(mins)}:${pad(secs)}` : `${pad(mins)}:${pad(secs)}`;
+}
+
+/** Returns the patch to pause an in-progress session, or null if the session cannot be paused. */
+export function pauseSessionPatch(session, now = nowIso()) {
+  if (!session || session.status !== SESSION_STATUS.IN_PROGRESS) return null;
+  return { status: SESSION_STATUS.PAUSED, pausedAt: now };
+}
+
+/** Returns the patch to resume a paused session (accumulating pausedSeconds), or null if not paused. */
+export function resumeSessionPatch(session, now = nowIso()) {
+  if (!session || session.status !== SESSION_STATUS.PAUSED) return null;
+  const pausedAt = toMs(session.pausedAt);
+  const nowMs = toMs(now);
+  const extra = pausedAt != null && nowMs != null ? Math.max(0, Math.round((nowMs - pausedAt) / 1000)) : 0;
+  const basePaused = Math.max(0, Number.isFinite(session.pausedSeconds) ? Math.round(session.pausedSeconds) : 0);
+  return { status: SESSION_STATUS.IN_PROGRESS, pausedAt: null, pausedSeconds: basePaused + extra };
+}
+
 /** True when `session` is an unfinished session of `workoutId` that was started within SESSION_WINDOW_SECONDS. */
 export function isOpenSession(session, workoutId, nowMs = Date.now()) {
   if (!session || session.deleted || session.workoutId !== workoutId || !OPEN_STATUSES.includes(session.status)) return false;
   const start = toMs(session.startedAt);
   return start != null && nowMs - start <= SESSION_WINDOW_SECONDS * 1000;
+}
+
+/** True when `session` is an unfinished session older than SESSION_WINDOW_SECONDS (surfaced on Fitness to Resume or Discard). */
+export function isAbandonedSession(session, nowMs = Date.now()) {
+  if (!session || session.deleted || !OPEN_STATUSES.includes(session.status)) return false;
+  const start = toMs(session.startedAt);
+  return start != null && nowMs - start > SESSION_WINDOW_SECONDS * 1000;
 }
 
 // ---- the plan snapshot ----
@@ -111,6 +169,28 @@ export function progressText(p) {
   if (p.exercisesTotal === 0) return p.skipped > 0 ? 'Every exercise is skipped.' : 'No exercises in this workout.';
   const text = `${p.setsDone} of ${p.setsPlanned} sets · ${p.exercisesDone} of ${p.exercisesTotal} exercises done`;
   return p.skipped > 0 ? `${text} · ${p.skipped} skipped` : text;
+}
+
+/**
+ * Starts a visual rest timer when a set was just logged, the exercise has `restSec > 0`, and at least one exercise in the
+ * workout still remains unfinished. Returns `{ exerciseName, durationSec, remainingSec }` or null.
+ */
+export function restForLoggedSet(prevEntries, nextEntries, index) {
+  const prev = prevEntries?.[index];
+  const next = nextEntries?.[index];
+  if (!prev || !next || loggedSets(next).length <= loggedSets(prev).length) return null;
+  const restSec = next.plan?.restSec;
+  if (!Number.isFinite(restSec) || restSec <= 0) return null;
+  if (sessionProgress(nextEntries).notFinished === 0) return null;
+  const whole = Math.round(restSec);
+  return { exerciseName: next.name || 'Exercise', durationSec: whole, remainingSec: whole };
+}
+
+/** Advances a rest timer by `deltaSec` seconds; returns null once the countdown reaches 0. */
+export function tickRestTimer(timer, deltaSec = 1) {
+  if (!timer || deltaSec <= 0) return timer;
+  const remainingSec = timer.remainingSec - deltaSec;
+  return remainingSec > 0 ? { ...timer, remainingSec } : null;
 }
 
 /**

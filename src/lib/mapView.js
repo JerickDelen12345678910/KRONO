@@ -1,9 +1,9 @@
 // src/lib/mapView.js
-// Phase 10 PACE 1 — pure logic of the Map screen (no React, no network, no storage): reading search results, matching
-// them with saved places, what the map shows, and the texts. pages/MapPage.jsx only renders what this returns;
-// scripts/check-map-view.mjs tests it. The network call itself is in src/lib/placeSearch.js.
+// Phase 10 PACE 1 + 2 + 3 — pure logic of the Map screen and travel schedule integration (no React, no network,
+// no storage): reading search results, matching them with saved places, what the map shows, route formatting,
+// "Leave at" times, Google Maps handoff URLs, travel schedule details, and screen texts.
 //
-// Selection keys (one string says what is selected): 'r:<providerId>' a search result, 's:<destination id>' a saved place.
+// Selection / point keys: 'me' = current device location, 'r:<providerId>' = search result, 's:<destination id>' = saved place.
 import { createDestination } from '../models/destination.js';
 
 export const QUERY_MIN = 3;
@@ -13,6 +13,13 @@ export const PH_BOUNDS = Object.freeze([[4.5, 116.9], [21.2, 126.7]]);
 /** A search result this close to a saved place of the same name is the same place. */
 export const SAME_PLACE_METERS = 50;
 const PLACE_ZOOM = 16;
+
+export const TRAVEL_MODE_OPTIONS = Object.freeze([
+  { value: 'driving', label: 'Driving' },
+  { value: 'walking', label: 'Walking' },
+  { value: 'cycling', label: 'Cycling' },
+  { value: 'flight', label: 'Plane' },
+]);
 
 // ---- the query ----
 export const normalizeQuery = (q) => String(q ?? '').replace(/\s+/g, ' ').trim().slice(0, QUERY_MAX);
@@ -50,12 +57,27 @@ export function boundsOf(places) {
   return [[Math.min(...lats), Math.min(...lngs)], [Math.max(...lats), Math.max(...lngs)]];
 }
 
+/** [[south, west], [north, east]] around [latitude, longitude] polyline points, or null. */
+export function boundsOfPoints(points) {
+  const valid = (points ?? []).filter((p) => Array.isArray(p) && p.length >= 2 && Number.isFinite(p[0]) && Number.isFinite(p[1]));
+  if (valid.length === 0) return null;
+  const lats = valid.map((p) => p[0]);
+  const lngs = valid.map((p) => p[1]);
+  return [[Math.min(...lats), Math.min(...lngs)], [Math.max(...lats), Math.max(...lngs)]];
+}
+
 /** Where the map should move for these places: one place = centre on it, several = fit them all, none = null. */
 export function focusFor(places) {
   const points = places.map(coordsOf).filter(Boolean);
   if (points.length === 0) return null;
   if (points.length === 1) return { ...points[0], zoom: PLACE_ZOOM };
   return { bounds: boundsOf(points) };
+}
+
+/** Where the map should move to frame a route polyline, or null when empty. */
+export function focusForRoute(route) {
+  const bounds = boundsOfPoints(route?.points);
+  return bounds ? { bounds } : null;
 }
 
 // ---- search results ----
@@ -168,4 +190,160 @@ export function geoErrorMessage(code) {
   if (code === 2) return 'Your location isn’t available right now. Try again, or search for a place.';
   if (code === 3) return 'Finding your location took too long. Try again.';
   return 'This device can’t share its location here. Search for a place instead.';
+}
+
+// ---- routing (Phase 10 PACE 2) ----
+/** Formats distance in metres: "850 m" under 1 km, "1.4 km" under 10 km, "18 km" at 10 km+. */
+export function formatDistance(meters) {
+  const m = Math.max(0, Math.round(Number(meters) || 0));
+  if (m < 1000) return `${m} m`;
+  const km = m / 1000;
+  return km < 10 ? `${km.toFixed(1)} km` : `${Math.round(km)} km`;
+}
+
+/** Formats travel duration in seconds: "1 min" minimum, "24 min", "1 hr 15 min", "2 hr". */
+export function formatRouteDuration(seconds) {
+  const totalMin = Math.max(1, Math.round((Number(seconds) || 0) / 60));
+  if (totalMin < 60) return `${totalMin} min`;
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  return m === 0 ? `${h} hr` : `${h} hr ${m} min`;
+}
+
+function formatMinutes12h(totalMinutes) {
+  const wrapped = ((totalMinutes % 1440) + 1440) % 1440;
+  const h24 = Math.floor(wrapped / 60);
+  const mins = wrapped % 60;
+  const h12 = h24 % 12 || 12;
+  const suffix = h24 < 12 ? 'AM' : 'PM';
+  return `${h12}:${String(mins).padStart(2, '0')} ${suffix}`;
+}
+
+export function parseHhMm(hhmm) {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(String(hhmm ?? '').trim());
+  if (!m) return null;
+  const h = Number(m[1]);
+  const min = Number(m[2]);
+  return h >= 0 && h <= 23 && min >= 0 && min <= 59 ? h * 60 + min : null;
+}
+
+/**
+ * Computes the "Leave at" text for a route duration:
+ * - When `arriveBy` ('HH:mm') is given: `{ leaveText: 'Leave at 7:36 AM', detailText: 'To arrive by 8:00 AM' }`.
+ * - Otherwise: `{ leaveText: 'Leave now', detailText: 'Arrive around 3:06 PM' }` based on `nowDate`.
+ */
+export function computeLeaveAt({ durationSeconds, arriveBy = '', nowDate = new Date() }) {
+  const mins = Math.max(1, Math.round((Number(durationSeconds) || 0) / 60));
+  const target = parseHhMm(arriveBy);
+  if (target != null) {
+    return {
+      leaveText: `Leave at ${formatMinutes12h(target - mins)}`,
+      detailText: `To arrive by ${formatMinutes12h(target)}`,
+    };
+  }
+  const base = nowDate instanceof Date && !Number.isNaN(nowDate.getTime()) ? nowDate : new Date();
+  const nowMins = base.getHours() * 60 + base.getMinutes();
+  return {
+    leaveText: 'Leave now',
+    detailText: `Arrive around ${formatMinutes12h(nowMins + mins)}`,
+  };
+}
+
+const GMAPS_MODE = Object.freeze({ driving: 'driving', walking: 'walking', cycling: 'bicycling', flight: 'transit' });
+
+/** Universal Google Maps directions link (plain URL, no API key). */
+export function googleMapsUrl({ origin = null, destination, mode = 'driving' }) {
+  const to = coordsOf(destination);
+  if (!to) return '';
+  const params = new URLSearchParams({
+    api: '1',
+    destination: `${to.latitude},${to.longitude}`,
+    travelmode: GMAPS_MODE[mode] ?? 'driving',
+  });
+  const from = coordsOf(origin);
+  if (from) params.set('origin', `${from.latitude},${from.longitude}`);
+  return `https://www.google.com/maps/dir/?${params}`;
+}
+
+/**
+ * Builds selectable place options for Start / Destination pickers:
+ * - Start includes "My location" (always selectable; triggers geolocation if not yet located)
+ * - Saved places with coordinates
+ * - Search results not already in saved places
+ */
+export function buildPlaceOptions({ me = null, saved = [], results = [], includeMyLocation = false }) {
+  const options = [];
+  if (includeMyLocation) {
+    options.push({ key: 'me', label: coordsOf(me) ? 'My location (current)' : 'My location' });
+  }
+  for (const d of saved) {
+    if (coordsOf(d)) options.push({ key: `s:${d.id}`, label: `${d.name || 'Saved place'} (Saved)` });
+  }
+  for (const r of results) {
+    if (matchSaved(saved, r)) continue;
+    options.push({ key: `r:${r.key}`, label: r.name });
+  }
+  return options;
+}
+
+/** Resolves a point key ('me' | 's:...' | 'r:...') into `{ key, name, latitude, longitude }`, or null. */
+export function resolvePointKey({ key, me = null, saved = [], results = [] }) {
+  if (typeof key !== 'string' || !key) return null;
+  if (key === 'me') {
+    const coords = coordsOf(me);
+    return coords ? { key: 'me', name: 'My location', ...coords } : null;
+  }
+  const sel = resolveSelection({ key, results, saved });
+  if (!sel || sel.latitude == null || sel.longitude == null) return null;
+  return { key: sel.key, name: sel.name, latitude: sel.latitude, longitude: sel.longitude };
+}
+
+/** Formats one route alternative row for the Route card. */
+export function routeOptionView(route, index, { selected = false, arriveBy = '', nowDate = new Date() } = {}) {
+  const timing = computeLeaveAt({ durationSeconds: route.durationSeconds, arriveBy, nowDate });
+  return {
+    id: route.id,
+    label: index === 0 ? 'Fastest' : `Alternative ${index}`,
+    summary: route.summary || (index === 0 ? 'Recommended route' : `Alternative ${index}`),
+    durationText: formatRouteDuration(route.durationSeconds),
+    distanceText: formatDistance(route.distanceMeters),
+    leaveText: timing.leaveText,
+    detailText: timing.detailText,
+    selected: Boolean(selected),
+  };
+}
+
+// ---- travel schedule integration (Phase 10 PACE 3) ----
+/** Builds the `/map` deep link for a saved destination and optional `arriveBy` ('HH:mm') time. */
+export function mapRouteLink({ destinationId = null, arriveBy = '' } = {}) {
+  if (!destinationId) return '/map';
+  const params = new URLSearchParams({ dest: destinationId });
+  if (parseHhMm(arriveBy) != null) params.set('arrive', String(arriveBy).trim());
+  return `/map?${params}`;
+}
+
+/** Formats the destination and "Leave at" summary shown on a Travel schedule detail card in Scheduler. */
+export function travelScheduleView({ schedule, destination = null, routeEstimate = null }) {
+  if (!schedule) return null;
+  const hasTravel = schedule.category === 'Travel' || Boolean(destination) || Boolean(schedule.destinationId);
+  if (!hasTravel) return null;
+  const destName = destination?.name || schedule.location || '';
+  const mapHref = mapRouteLink({ destinationId: destination?.id ?? null, arriveBy: schedule.startTime });
+  if (destination && routeEstimate && Number.isFinite(routeEstimate.durationSeconds)) {
+    const timing = computeLeaveAt({ durationSeconds: routeEstimate.durationSeconds, arriveBy: schedule.startTime });
+    return {
+      destinationName: destName,
+      leaveText: timing.leaveText,
+      subtitle: `${formatRouteDuration(routeEstimate.durationSeconds)} · ${formatDistance(routeEstimate.distanceMeters)} · ${timing.detailText}`,
+      mapHref,
+    };
+  }
+  return {
+    destinationName: destName,
+    leaveText: null,
+    subtitle: destination
+      ? 'Open route on Map to see travel time and Leave at'
+      : 'Link a saved place in Edit schedule for route timing',
+    mapHref,
+  };
 }

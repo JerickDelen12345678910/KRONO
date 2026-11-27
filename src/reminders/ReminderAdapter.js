@@ -21,3 +21,4 @@ export function assertReminderAdapter(adapter) {
   if (missing.length) throw new TypeError(`Reminder adapter is missing: ${missing.join(', ')}`);
   return adapter;
 }
+export const REMINDER_SOUNDS = Object.freeze(['default', 'gentle', 'bright', 'custom']);

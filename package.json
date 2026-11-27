@@ -8,9 +8,13 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "check": "node scripts/check-all.mjs"
+    "check": "node scripts/check-all.mjs",
+    "cap:sync": "npm run build && npx cap sync android",
+    "cap:android": "npx cap open android"
   },
   "dependencies": {
+    "@capacitor/core": "^8.0.0",
+    "@capacitor/local-notifications": "^8.0.0",
     "bootstrap": "^5.3.9",
     "bootstrap-icons": "^1.13.2",
     "firebase": "^13.3.0",
@@ -24,6 +28,9 @@
     "tesseract.js": "^7.0.0"
   },
   "devDependencies": {
+    "@capacitor/android": "^8.0.0",
+    "@capacitor/assets": "^4.0.0",
+    "@capacitor/cli": "^8.0.0",
     "@eslint/js": "^10.0.1",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",

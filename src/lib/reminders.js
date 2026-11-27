@@ -17,7 +17,7 @@ import { to12h } from './timeline.js';
 
 export const REMINDER_MODE = Object.freeze({ NOTIFY: 'notify', ALARM: 'alarm', BOTH: 'both' });   // ALARM (alarm only) needs a model change: not used yet
 export const SNOOZE_OPTIONS = Object.freeze([5, 10, 15]);
-export const REMINDER_SOUNDS = Object.freeze(['default', 'gentle', 'bright']);   // names only; real audio, preview and volume are native (later)
+export const REMINDER_SOUNDS = Object.freeze(['default', 'gentle', 'bright', 'custom']);
 export const MAX_OFFSET_MINUTES = 10080;                                          // same limit as validateSchedule
 export const PLAN_HORIZON_DAYS = 14;
 export const PLAN_MAX_REMINDERS = 60;

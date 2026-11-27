@@ -1,18 +1,27 @@
 import { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react';
+import { Capacitor, registerPlugin } from '@capacitor/core';
 import {
-  GoogleAuthProvider, onAuthStateChanged, signInWithPopup,
-  signOut as fbSignOut, deleteUser, reauthenticateWithPopup,
+  GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signInWithRedirect, getRedirectResult,
+  signInWithCredential, signOut as fbSignOut, deleteUser, reauthenticateWithPopup,
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db, isFirebaseConfigured } from '../lib/firebase';
 import { AppError, ERROR_CODE } from '../lib/errors';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 
+const NativeGoogleAuth = registerPlugin('NativeGoogleAuth');
 const AuthContext = createContext(null);
 
 const DEMO_USER = { uid: 'demo', displayName: 'Alex Dela Cruz', email: 'alex@example.com', photoURL: null };
 const OPTIONAL = { userType: '', school: '', course: '', yearLevel: '' };
 const fromAuth = (u) => ({ displayName: u.displayName || '', email: u.email || '', photoURL: u.photoURL || null, ...OPTIONAL });
+
+async function signInNativeGoogle() {
+  const { idToken } = await NativeGoogleAuth.signIn();
+  if (!idToken) throw new Error('Google sign-in did not return an ID token.');
+  const credential = GoogleAuthProvider.credential(idToken);
+  await signInWithCredential(auth, credential);
+}
 
 export function AuthProvider({ children }) {
   const online = useOnlineStatus();
@@ -20,7 +29,6 @@ export function AuthProvider({ children }) {
   const [profile, setProfile] = useState(isFirebaseConfigured ? null : { ...fromAuth(DEMO_USER), userType: 'Student', school: 'Sample University', course: 'BSCS', yearLevel: '3rd year' });
   const [loading, setLoading] = useState(isFirebaseConfigured);
 
-  // Create the profile on first sign-in; otherwise load it.
   const loadProfile = useCallback(async (u) => {
     const ref = doc(db, 'users', u.uid);
     try {
@@ -30,12 +38,13 @@ export function AuthProvider({ children }) {
       await setDoc(ref, data);
       return { ...fromAuth(u) };
     } catch {
-      return fromAuth(u); // offline or not cached yet: fall back to the sign-in details
+      return fromAuth(u);
     }
   }, []);
 
   useEffect(() => {
     if (!isFirebaseConfigured) return undefined;
+    getRedirectResult(auth).catch(() => {});
     return onAuthStateChanged(auth, async (u) => {
       setUser(u);
       setProfile(u ? await loadProfile(u) : null);
@@ -45,7 +54,27 @@ export function AuthProvider({ children }) {
 
   const signInWithGoogle = useCallback(async () => {
     if (!isFirebaseConfigured) return;
-    await signInWithPopup(auth, new GoogleAuthProvider());
+    if (Capacitor.isNativePlatform()) {
+      await signInNativeGoogle();
+      return;
+    }
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
+    try {
+      await signInWithPopup(auth, provider);
+    } catch (popupErr) {
+      if (popupErr?.code === 'auth/popup-blocked') {
+        throw new Error(
+          'Popup was blocked by your browser. Please allow popups for this site and tap Continue with Google again.',
+          { cause: popupErr },
+        );
+      }
+      if (popupErr?.code === 'auth/operation-not-supported-in-this-environment') {
+        await signInWithRedirect(auth, provider);
+      } else {
+        throw popupErr;
+      }
+    }
   }, []);
 
   const updateProfile = useCallback(async (changes) => {
@@ -56,7 +85,6 @@ export function AuthProvider({ children }) {
     }
   }, [profile, user]);
 
-  // Product rule: no sign-out while offline, so local data stays protected.
   const signOut = useCallback(async () => {
     if (!navigator.onLine) throw new AppError(ERROR_CODE.OFFLINE, 'Offline.');
     if (isFirebaseConfigured) await fbSignOut(auth);
@@ -66,11 +94,14 @@ export function AuthProvider({ children }) {
     if (!navigator.onLine) throw new AppError(ERROR_CODE.OFFLINE, 'Offline.');
     if (!isFirebaseConfigured) return;
     const current = auth.currentUser;
-    // Later phases: also delete this user's schedules, workouts, and Storage files here.
     const remove = async () => { await deleteDoc(doc(db, 'users', current.uid)); await deleteUser(current); };
     try { await remove(); } catch (e) {
       if (e.code === 'auth/requires-recent-login') {
-        await reauthenticateWithPopup(current, new GoogleAuthProvider());
+        if (Capacitor.isNativePlatform()) {
+          await signInNativeGoogle();
+        } else {
+          await reauthenticateWithPopup(current, new GoogleAuthProvider());
+        }
         await remove();
       } else throw e;
     }

@@ -18,6 +18,7 @@ export const createWorkout = (o = {}) => ({
 export const createWorkoutSession = (workout, o = {}) => ({
   ...createBase(), workoutId: workout.id, workoutName: workout.name, scheduleId: workout.scheduleId ?? null, occurrenceId: null,
   startedAt: nowIso(), endedAt: null, status: SESSION_STATUS.IN_PROGRESS, activeSeconds: 0,
+  pausedAt: null, pausedSeconds: 0,
   entries: workout.items.map((i) => ({ exerciseId: i.exerciseId, name: i.name, status: ENTRY_STATUS.PENDING, sets: [] })), // sets: [{ reps, durationSec }]
   ...o,
 });

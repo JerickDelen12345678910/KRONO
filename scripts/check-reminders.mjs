@@ -23,7 +23,7 @@ const ids = (list) => list.map((r) => r.id);
 // ---- constants ----
 eq([PLAN_HORIZON_DAYS, PLAN_MAX_REMINDERS, MAX_OFFSET_MINUTES], [14, 60, 10080], 'planning limits');
 eq(REMINDER_MODE, { NOTIFY: 'notify', ALARM: 'alarm', BOTH: 'both' }, 'modes');
-eq([SNOOZE_OPTIONS.join(), REMINDER_SOUNDS.join()], ['5,10,15', 'default,gentle,bright'], 'snooze options and sound names');
+eq([SNOOZE_OPTIONS.join(), REMINDER_SOUNDS.join()], ['5,10,15', 'default,gentle,bright,custom'], 'snooze options and sound names');
 
 // ---- fire time ----
 eq(reminderFireAt('2026-11-16', '08:00', 15), '2026-11-16T07:45', '15 minutes before');

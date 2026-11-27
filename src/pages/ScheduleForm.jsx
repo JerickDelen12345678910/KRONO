@@ -17,7 +17,7 @@ import { ToggleSwitch } from '../components/ui/ToggleSwitch';
 const CATEGORY_OPTIONS = CATEGORIES.map((c) => ({ value: c, label: c }));
 const REPEAT_OPTIONS = [
   ['none', 'Does not repeat'], ['daily', 'Every day'], ['weekly', 'Every week'],
-  ['selectedDays', 'Selected days of the week'], ['custom', 'Custom (every N days)'],
+  ['selectedDays', 'Selected days'], ['custom', 'Every N days'],
 ];
 const WEEKDAYS = [[0, 'S', 'Sunday'], [1, 'M', 'Monday'], [2, 'T', 'Tuesday'], [3, 'W', 'Wednesday'], [4, 'T', 'Thursday'], [5, 'F', 'Friday'], [6, 'S', 'Saturday']];
 const unit = (type) => (type === 'daily' || type === 'custom' ? 'days' : 'weeks');
@@ -28,9 +28,8 @@ export function ScheduleForm() {
   const editing = Boolean(id);
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const { schedule, activity, reminders } = useServices();
+  const { schedule, activity, reminders, place } = useServices();
 
-  // A brand-new schedule starts with the user's current global reminder defaults; editing always loads the saved schedule's own reminder below.
   const [draft, setDraft] = useState(() => emptyDraft({
     ...(isDate(params.get('date')) ? { date: params.get('date') } : {}),
     ...(editing ? {} : { reminder: defaultReminder(reminders.getSettings()) }),
@@ -42,6 +41,15 @@ export function ScheduleForm() {
   const [formError, setFormError] = useState('');
   const [busy, setBusy] = useState(false);
   const [existing, setExisting] = useState([]);
+  const [savedPlaces, setSavedPlaces] = useState([]);
+
+  useEffect(() => {
+    let alive = true;
+    place.listFavorites()
+      .then((rows) => { if (alive) setSavedPlaces(rows); })
+      .catch(() => { if (alive) setSavedPlaces([]); });
+    return () => { alive = false; };
+  }, [place]);
 
   useEffect(() => {
     if (!id) return undefined;
@@ -54,7 +62,6 @@ export function ScheduleForm() {
     return () => { alive = false; };
   }, [id, schedule]);
 
-  // Conflict warning: load what is already scheduled on the dates this draft covers, then compare (pure, see lib/conflicts.js).
   const input = useMemo(() => draftToInput(draft), [draft]);
   const range = conflictRange(input);
   const rangeFrom = range?.from ?? null;
@@ -64,7 +71,7 @@ export function ScheduleForm() {
     let alive = true;
     activity.list({ from: rangeFrom, to: rangeTo })
       .then((rows) => { if (alive) setExisting(rows); })
-      .catch((err) => { handleError(err, 'schedule-conflicts'); if (alive) setExisting([]); });   // the warning is optional: never block the form
+      .catch((err) => { handleError(err, 'schedule-conflicts'); if (alive) setExisting([]); });
     return () => { alive = false; };
   }, [activity, rangeFrom, rangeTo]);
   const conflicts = useMemo(() => findConflicts(input, existing, { ignoreScheduleId: editing ? id : null }), [input, existing, editing, id]);
@@ -72,7 +79,14 @@ export function ScheduleForm() {
   const set = (key) => (e) => setDraft((d) => ({ ...d, [key]: e.target.value }));
   const setRepeat = (key) => (e) => setDraft((d) => ({ ...d, repeat: { ...d.repeat, [key]: e.target.value } }));
   const setReminder = (key, value) => setDraft((d) => ({ ...d, reminder: { ...d.reminder, [key]: value } }));
-  // After the first Save attempt, errors update live as the user fixes the fields.
+  const setDestination = (destId) => {
+    const chosen = savedPlaces.find((p) => p.id === destId) ?? null;
+    setDraft((d) => ({
+      ...d,
+      destinationId: destId || null,
+      location: chosen && !d.location.trim() ? chosen.name : d.location,
+    }));
+  };
   const errors = submitted ? validateDraft(draft).errors : {};
   const invalid = (key) => (errors[key] ? { 'aria-invalid': true } : {});
 
@@ -83,18 +97,18 @@ export function ScheduleForm() {
     if (!validateDraft(draft).valid) return;
     setBusy(true);
     try {
-      const input = draftToInput(draft);
-      const saved = editing ? await schedule.update(id, input, { expectedVersion: version }) : await schedule.create(input);
+      const nextInput = draftToInput(draft);
+      const saved = editing ? await schedule.update(id, nextInput, { expectedVersion: version }) : await schedule.create(nextInput);
       navigate(`/scheduler?date=${focusDate(saved)}`);
     } catch (err) {
-      if (isAppError(err) && err.code === ERROR_CODE.VALIDATION) setFormError(Object.values(err.details.errors ?? {})[0] ?? 'Some fields need attention.');
+      if (isAppError(err) && err.code === ERROR_CODE.VALIDATION) setFormError(Object.values(err.details.errors ?? {})[0] ?? 'Check highlighted fields.');
       else setFormError(handleError(err, 'schedule-form'));
       setBusy(false);
     }
   };
 
   const remove = async () => {
-    if (!window.confirm('Delete this schedule and all of its items? This cannot be undone.')) return;
+    if (!window.confirm('Delete this schedule?')) return;
     try { await schedule.remove(id); navigate('/scheduler'); } catch (err) { setFormError(handleError(err, 'schedule-form')); }
   };
 
@@ -102,8 +116,8 @@ export function ScheduleForm() {
   if (missing) {
     return (
       <div className="stack">
-        <NoteBanner>That schedule could not be found. It may have been deleted.</NoteBanner>
-        <Button variant="secondary" onClick={() => navigate('/scheduler')}>Back to Scheduler</Button>
+        <NoteBanner>Schedule not found.</NoteBanner>
+        <Button variant="secondary" onClick={() => navigate('/scheduler')}>Back</Button>
       </div>
     );
   }
@@ -111,12 +125,12 @@ export function ScheduleForm() {
   const repeating = draft.repeat.type !== 'none';
   const weekly = draft.repeat.type === 'weekly' || draft.repeat.type === 'selectedDays';
   const offsets = REMINDER_OFFSETS.includes(Number(draft.reminder.offsetMinutes)) ? REMINDER_OFFSETS : [...REMINDER_OFFSETS, Number(draft.reminder.offsetMinutes)].sort((a, b) => a - b);
+  const showDestinationPicker = draft.category === 'Travel' || Boolean(draft.destinationId);
 
   return (
-    <form className="stack" onSubmit={save} noValidate>
+    <form className="stack krono-fade-in" onSubmit={save} noValidate>
       <h3 className="section-divider">{editing ? 'Edit schedule' : 'New schedule'}</h3>
       {formError && <NoteBanner>{formError}</NoteBanner>}
-      {Object.keys(errors).length > 0 && <NoteBanner>Please fix the highlighted fields.</NoteBanner>}
 
       <div className="cols">
         <div className="stack">
@@ -128,16 +142,26 @@ export function ScheduleForm() {
               <FormField as="div" label="Category" error={errors.category}>
                 <FilterChips label="Category" options={CATEGORY_OPTIONS} value={draft.category} onChange={(category) => setDraft((d) => ({ ...d, category }))} />
               </FormField>
+              {showDestinationPicker && (
+                <FormField label="Saved destination" error={errors.destinationId}>
+                  <select value={draft.destinationId ?? ''} onChange={(e) => setDestination(e.target.value)}>
+                    <option value="">None</option>
+                    {savedPlaces.map((p) => (
+                      <option key={p.id} value={p.id}>{p.address ? `${p.name} — ${p.address}` : p.name}</option>
+                    ))}
+                  </select>
+                </FormField>
+              )}
               {!repeating && (
                 <FormField label="Date" error={errors.date}>
                   <input type="date" value={draft.date ?? ''} onChange={set('date')} {...invalid('date')} />
                 </FormField>
               )}
               <FormField label="Location (optional)">
-                <input value={draft.location} onChange={set('location')} placeholder="e.g. Room 304" />
+                <input value={draft.location} onChange={set('location')} placeholder={draft.category === 'Travel' ? 'e.g. Calapan Pier' : 'e.g. Room 304'} />
               </FormField>
               <FormField label="Notes (optional)">
-                <textarea rows={3} value={draft.description} onChange={set('description')} />
+                <textarea rows={2} value={draft.description} onChange={set('description')} />
               </FormField>
             </div>
           </Card>
@@ -158,18 +182,18 @@ export function ScheduleForm() {
 
           <Card header="Repeat">
             <div className="form-grid">
-              <FormField label="How often" error={errors.repeat}>
+              <FormField label="Frequency" error={errors.repeat}>
                 <select value={draft.repeat.type} onChange={(e) => setDraft((d) => setRepeatType(d, e.target.value))}>
                   {REPEAT_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                 </select>
               </FormField>
               {repeating && (
                 <>
-                  <FormField label={`Every how many ${unit(draft.repeat.type)}?`} error={errors.interval}>
+                  <FormField label={`Every (${unit(draft.repeat.type)})`} error={errors.interval}>
                     <input type="number" min="1" max="365" value={draft.repeat.interval} onChange={setRepeat('interval')} {...invalid('interval')} />
                   </FormField>
                   {weekly && (
-                    <FormField as="div" label="On these days" error={errors.daysOfWeek}>
+                    <FormField as="div" label="Days" error={errors.daysOfWeek}>
                       <div className="chips">
                         {WEEKDAYS.map(([day, letter, name]) => (
                           <button key={day} type="button" title={name} aria-label={name} aria-pressed={draft.repeat.daysOfWeek.includes(day)}
@@ -194,16 +218,16 @@ export function ScheduleForm() {
 
           <Card header="Reminder">
             <div className="list-row">
-              <div className="row-content"><b className="row-title">Remind me</b><small className="row-subtitle">Notification before it starts</small></div>
+              <div className="row-content"><b className="row-title">Remind me</b></div>
               <ToggleSwitch checked={draft.reminder.enabled} onChange={(v) => setReminder('enabled', v)} aria-label="Remind me" />
             </div>
             {draft.reminder.enabled && (
               <>
                 <div className="list-row">
-                  <div className="row-content"><b className="row-title">Also sound an alarm</b><small className="row-subtitle">Android only</small></div>
-                  <ToggleSwitch checked={draft.reminder.useAlarm} onChange={(v) => setReminder('useAlarm', v)} aria-label="Also sound an alarm" />
+                  <div className="row-content"><b className="row-title">Sound alarm</b></div>
+                  <ToggleSwitch checked={draft.reminder.useAlarm} onChange={(v) => setReminder('useAlarm', v)} aria-label="Sound alarm" />
                 </div>
-                <FormField label="When" error={errors.reminder}>
+                <FormField label="Lead time" error={errors.reminder}>
                   <select value={draft.reminder.offsetMinutes} onChange={(e) => setReminder('offsetMinutes', Number(e.target.value))}>
                     {offsets.map((m) => <option key={m} value={m}>{offsetLabel(m)}</option>)}
                   </select>

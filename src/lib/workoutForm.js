@@ -180,6 +180,9 @@ export function pickerResults(exercises, limit = PICKER_LIMIT) {
   return { rows: exercises.slice(0, limit).map(pickerRow), more: Math.max(0, exercises.length - limit) };
 }
 
+/** True when a workout has at least one exercise and can be started directly from My workouts. */
+export const canStartWorkout = (w) => Array.isArray(w?.items) && w.items.length > 0;
+
 /** One "My workouts" row: "4 ex" | name | "Strength · Scheduled". With `schedules`, a link to a deleted schedule does not count as Scheduled. */
 export function workoutRow(w, schedules = null) {
   const n = w.items?.length ?? 0;

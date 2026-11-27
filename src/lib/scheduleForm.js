@@ -11,14 +11,15 @@ const weekdayOf = (d) => { const [y, m, day] = d.split('-').map(Number); return 
 /** `reminder` defaults to createReminder() for backward compatibility; ScheduleForm.jsx passes defaultReminder(settings) for a NEW schedule. */
 export function emptyDraft({ date = toLocalDate(), reminder = createReminder() } = {}) {
   return {
-    title: '', category: 'Personal', description: '', location: '', date,
+    title: '', category: 'Personal', description: '', location: '', destinationId: null, date,
     startTime: '08:00', endTime: '09:00', repeat: createRepeatRule(), reminder,
   };
 }
 
 export function draftFromSchedule(s) {
   return {
-    title: s.title, category: s.category, description: s.description ?? '', location: s.location ?? '', date: s.date,
+    title: s.title, category: s.category, description: s.description ?? '', location: s.location ?? '',
+    destinationId: s.destinationId ?? null, date: s.date,
     startTime: s.startTime, endTime: s.endTime,
     repeat: { ...createRepeatRule(), ...s.repeat, daysOfWeek: [...(s.repeat?.daysOfWeek ?? [])] },
     reminder: { ...createReminder(), ...s.reminder },
@@ -51,6 +52,7 @@ export function draftToInput(draft) {
     color: CATEGORY_COLOR[draft.category],
     description: draft.description.trim(),
     location: draft.location.trim(),
+    destinationId: draft.destinationId || null,
     date: repeating ? null : draft.date || null,
     startTime: draft.startTime,
     endTime: draft.endTime,

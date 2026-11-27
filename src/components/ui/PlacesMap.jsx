@@ -1,16 +1,15 @@
 import { useEffect, useRef } from 'react';
-import * as L from 'leaflet';   // namespace import: works with both Leaflet's UMD and ES-module builds
+import * as L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { PH_BOUNDS } from '../../lib/mapView.js';
 
-// OpenStreetMap's own tile server: free, no key. Its usage policy asks for light use and a visible credit (the attribution below).
-// For heavy production traffic switch TILE_URL to a hosted tile provider; nothing else changes.
-const TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
-const ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors';
+const OSM_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+const ESRI_STREET_URL = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}';
+const ESRI_SATELLITE_URL = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
+const ATTRIBUTION = '&copy; OpenStreetMap contributors &copy; Esri';
 
 const prefersReducedMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
 
-// Pins are plain styled <span>s (see .map-pin in _components.scss): no marker image files, so nothing breaks when the app is bundled.
 const pinIcon = (kind, selected) => L.divIcon({
   className: `map-pin map-pin-${kind}${selected ? ' is-selected' : ''}`,
   html: '<span></span>',
@@ -18,28 +17,41 @@ const pinIcon = (kind, selected) => L.divIcon({
   iconAnchor: [11, 11],
 });
 
-/**
- * An interactive map (Leaflet + OpenStreetMap).
- *   markers  [{ id, kind: 'result'|'saved'|'me', label, latitude, longitude, selected }]  (keep the array stable between renders)
- *   focus    { seq, latitude, longitude, zoom } or { seq, bounds }  — moves the map when `seq` changes
- *   onSelect (id) => void, called when a pin is clicked or activated with the keyboard
- * The lists next to the map are the accessible way to pick a place; the pins are an extra.
- */
-export function PlacesMap({ markers = [], focus = null, onSelect, ariaLabel = 'Map' }) {
+export function PlacesMap({ markers = [], routes = [], focus = null, onSelect, onSelectRoute, onPickMap, ariaLabel = 'Map' }) {
   const hostRef = useRef(null);
   const mapRef = useRef(null);
+  const routeLayerRef = useRef(null);
   const layerRef = useRef(null);
   const onSelectRef = useRef(onSelect);
-  useEffect(() => { onSelectRef.current = onSelect; });
+  const onSelectRouteRef = useRef(onSelectRoute);
+  const onPickMapRef = useRef(onPickMap);
+  useEffect(() => {
+    onSelectRef.current = onSelect;
+    onSelectRouteRef.current = onSelectRoute;
+    onPickMapRef.current = onPickMap;
+  });
 
-  // create the map once
   useEffect(() => {
     const calm = prefersReducedMotion();
     const map = L.map(hostRef.current, { zoomAnimation: !calm, fadeAnimation: !calm, markerZoomAnimation: !calm });
-    L.tileLayer(TILE_URL, { maxZoom: 19, attribution: ATTRIBUTION }).addTo(map);
-    map.zoomControl.setPosition('bottomright');   // the search bar sits at the top
+    const osm = L.tileLayer(OSM_URL, { maxZoom: 19, attribution: ATTRIBUTION });
+    const esriStreet = L.tileLayer(ESRI_STREET_URL, { maxZoom: 19, attribution: ATTRIBUTION });
+    const esriSatellite = L.tileLayer(ESRI_SATELLITE_URL, { maxZoom: 19, attribution: ATTRIBUTION });
+    osm.addTo(map);
+    L.control.layers(
+      { 'Street & POIs': osm, 'Detailed Map': esriStreet, Satellite: esriSatellite },
+      null,
+      { position: 'bottomleft' },
+    ).addTo(map);
+    map.zoomControl.setPosition('bottomright');
     map.attributionControl.setPrefix(false);
     map.fitBounds(PH_BOUNDS, { animate: false });
+    map.on('click', (e) => {
+      if (e?.latlng) {
+        onPickMapRef.current?.({ latitude: e.latlng.lat, longitude: e.latlng.lng });
+      }
+    });
+    routeLayerRef.current = L.layerGroup().addTo(map);
     layerRef.current = L.layerGroup().addTo(map);
     mapRef.current = map;
     const watcher = typeof ResizeObserver === 'function' ? new ResizeObserver(() => map.invalidateSize()) : null;
@@ -48,11 +60,37 @@ export function PlacesMap({ markers = [], focus = null, onSelect, ariaLabel = 'M
       watcher?.disconnect();
       map.remove();
       mapRef.current = null;
+      routeLayerRef.current = null;
       layerRef.current = null;
     };
   }, []);
 
-  // draw the pins
+  useEffect(() => {
+    const layer = routeLayerRef.current;
+    if (!layer) return;
+    layer.clearLayers();
+    if (!Array.isArray(routes) || routes.length === 0) return;
+    const styles = hostRef.current ? getComputedStyle(hostRef.current) : null;
+    const activeColor = styles?.getPropertyValue('--map').trim() || '#0d9488';
+    const altColor = styles?.getPropertyValue('--mu').trim() || '#64748b';
+    const ordered = [...routes].sort((a, b) => Number(Boolean(a.selected)) - Number(Boolean(b.selected)));
+    for (const r of ordered) {
+      if (!Array.isArray(r.points) || r.points.length < 2) continue;
+      const isFlight = String(r.id || '').startsWith('flight');
+      const line = L.polyline(r.points, {
+        color: r.selected ? activeColor : altColor,
+        weight: r.selected ? 5 : 4,
+        opacity: r.selected ? 0.92 : 0.5,
+        dashArray: isFlight ? '10, 8' : undefined,
+      });
+      line.on('click', (e) => {
+        L.DomEvent.stopPropagation(e);
+        onSelectRouteRef.current?.(r.id);
+      });
+      line.addTo(layer);
+    }
+  }, [routes]);
+
   useEffect(() => {
     const layer = layerRef.current;
     if (!layer) return;
@@ -61,12 +99,16 @@ export function PlacesMap({ markers = [], focus = null, onSelect, ariaLabel = 'M
       const marker = L.marker([m.latitude, m.longitude], {
         icon: pinIcon(m.kind, m.selected), title: m.label, keyboard: true, riseOnHover: true, zIndexOffset: m.selected ? 1000 : 0,
       });
-      if (m.kind !== 'me') marker.on('click', () => onSelectRef.current?.(m.id));
+      if (m.kind !== 'me') {
+        marker.on('click', (e) => {
+          L.DomEvent.stopPropagation(e);
+          onSelectRef.current?.(m.id);
+        });
+      }
       marker.addTo(layer);
     }
   }, [markers]);
 
-  // move the map
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !focus) return;

@@ -1,7 +1,7 @@
 // src/lib/dashboardView.js
-// Phase 11 PACE 1 — pure view logic of the Home dashboard (no React, no storage): the four KPI cards, "Next up", the Today list,
-// the Start workout target and the Sync card. pages/Dashboard.jsx only renders what this returns;
-// scripts/check-dashboard-view.mjs tests it.
+// Phase 11 PACE 1 + Phase 10 PACE 3 — pure view logic of the Home dashboard (no React, no storage): the four KPI cards,
+// "Next up", the "Leave for …" travel card, the Today list, the Start workout target and the Sync card.
+// pages/Dashboard.jsx only renders what this returns; scripts/check-dashboard-view.mjs tests it.
 //
 // Honesty rules (same as src/lib/fitnessView.js): nothing is invented. No data yet -> placeholders, never fake zeros; sync is never
 // called "Synced" unless nothing is waiting; status is always a word, never only a colour.
@@ -12,6 +12,7 @@ import { ACTIVITY_STATUS, ACTIVITY_TYPE, OCCURRENCE_STATUS } from '../models/con
 import { addDays, toLocalDate, toLocalDateTime } from '../models/common.js';
 import { durationLabel } from './fitness.js';
 import { plannedMinutes } from './fitnessView.js';
+import { computeLeaveAt, formatDistance, formatRouteDuration, mapRouteLink } from './mapView.js';
 import { dateOf, timeOf, to12h } from './timeline.js';
 
 const PLACEHOLDER = '–';
@@ -86,10 +87,73 @@ export function nextUp(upcoming, now) {
   if (!a) return null;
   return {
     key: a.id ?? `${a.type}-${a.startsAt}`,
+    occurrenceId: a.refs?.occurrenceId ?? null,
+    scheduleId: a.refs?.scheduleId ?? null,
     title: a.title || 'Untitled',
     when: untilLabel(a.startsAt, now),
     meta: [rangeOf(a), a.subtitle].filter(Boolean).join(' · '),
     route: routeFor(a),
+  };
+}
+
+// ---- upcoming travel ("Leave for …") ----
+const isTravel = (a) => a.type === ACTIVITY_TYPE.TRIP || a.category === 'Travel';
+
+/**
+ * Finds the soonest open upcoming Travel activity and joins it with its schedule definition and saved destination.
+ * Returns `{ activity, schedule, destination, title, when, startsAt, startTime, mapRoute }` or `null`.
+ */
+export function upcomingTravel(upcoming, schedules = [], places = [], now = new Date()) {
+  const nowKey = toLocalDateTime(now);
+  const a = (upcoming ?? [])
+    .filter((x) => isTravel(x) && OPEN_ACTIVITY.includes(x.status) && x.startsAt && x.startsAt >= nowKey)
+    .sort(byStart)[0];
+  if (!a) return null;
+  const sched = a.refs?.scheduleId ? (schedules ?? []).find((s) => s.id === a.refs.scheduleId) ?? null : null;
+  const destId = sched?.destinationId ?? a.refs?.destinationId ?? null;
+  const dest = destId ? (places ?? []).find((p) => p.id === destId) ?? null : null;
+  const startTime = timeOf(a.startsAt);
+  return {
+    activity: a,
+    schedule: sched,
+    destination: dest,
+    title: dest?.name || a.title || 'Trip',
+    when: untilLabel(a.startsAt, now),
+    startsAt: a.startsAt,
+    startTime,
+    mapRoute: mapRouteLink({ destinationId: dest?.id ?? null, arriveBy: startTime }),
+  };
+}
+
+/**
+ * Formats the Dashboard "Leave for …" card for an upcoming travel schedule.
+ * Uses a live route duration when available, otherwise falls back honestly to the scheduled start time.
+ */
+export function leaveForCard(trip, routeEstimate = null, online = true) {
+  if (!trip) return null;
+  const heading = `Leave for ${trip.title}`;
+  if (trip.destination && routeEstimate && Number.isFinite(routeEstimate.durationSeconds)) {
+    const timing = computeLeaveAt({ durationSeconds: routeEstimate.durationSeconds, arriveBy: trip.startTime });
+    return {
+      heading,
+      pill: { variant: 'map', label: timing.leaveText },
+      title: `${formatRouteDuration(routeEstimate.durationSeconds)} (${formatDistance(routeEstimate.distanceMeters)})`,
+      subtitle: `${timing.detailText}${trip.when ? ` · ${trip.when}` : ''}`,
+      mapRoute: trip.mapRoute,
+    };
+  }
+  const startLabel = `Starts ${to12h(trip.startTime)}`;
+  const fallbackSub = !online
+    ? 'Offline · open Route when connected for live travel time'
+    : trip.destination
+      ? (trip.destination.address || 'Open Route to calculate travel time')
+      : (trip.activity?.subtitle || 'Open Route to choose a destination');
+  return {
+    heading,
+    pill: { variant: online ? 'map' : 'warn', label: startLabel },
+    title: trip.when ? `${trip.title} · ${trip.when}` : trip.title,
+    subtitle: fallbackSub,
+    mapRoute: trip.mapRoute,
   };
 }
 
@@ -127,7 +191,6 @@ function workoutCard(planned) {
 
 /**
  * The four KPI cards. `data` = { today, planned, places, reminders } where places / reminders are COUNTS (null = not read yet).
- * The third card is "Saved places" until Map PACE 3 can say when to leave for a trip ("Leave for ...").
  */
 export function kpiCards(data, now) {
   if (!data?.loaded) {

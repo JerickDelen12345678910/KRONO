@@ -1,68 +1,461 @@
 @use "design-tokens" as *;
-@use "variables";
 @use "components";
 
-// --- Global base styles ---
+*, *::before, *::after {
+  box-sizing: border-box;
+}
 
-  *, *::before, *::after {
-    box-sizing: border-box;
-  }
-  
-  html {
-    scroll-padding-top: env(safe-area-inset-top, 0px);
-    font-variant-numeric: tabular-nums;
-  }
-  
-  body {
-    margin: 0;
-    padding-top: env(safe-area-inset-top, 0px);
-    padding-bottom: env(safe-area-inset-bottom, 0px);
-    background: var(--bg);
-    color: var(--ink);
-    font: 500 14px/1.5 var(--font-family-base, #{$font-family-base});
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-  }
-  
-  // Focus visible for accessibility
-  :focus-visible {
-    outline: 2px solid var(--pri);
-    outline-offset: 2px;
-  }
-  
-  // Scrollbar styling
-  ::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
-  }
-  ::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  ::-webkit-scrollbar-thumb {
-    background: var(--bd);
-    border-radius: 4px;
-  }
-  ::-webkit-scrollbar-thumb:hover {
-    background: var(--mu);
-  }
-  
-  // Selection
-  ::selection {
-    background: var(--pri-s);
-    color: var(--pri);
-  }
-  [data-theme="dark"] ::selection {
-    background: var(--pri-s);
-    color: var(--pri);
-  }
-  
-  // Reduced motion
-  @media (prefers-reduced-motion: reduce) {
-    *, *::before, *::after {
-      animation-duration: 0.01ms !important;
-      animation-iteration-count: 1 !important;
-      transition-duration: 0.01ms !important;
-      scroll-behavior: auto !important;
-    }
-  }
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
 
+button, input, select, textarea {
+  font-family: inherit;
+}
+
+// ============================================
+// KRONO UPGRADES — Animations, Wave Bottom Nav, Header, Login & Splash
+// ============================================
+
+@keyframes kronoFadeSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes kronoPopIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes kronoLogoPulse {
+  0% { transform: scale(0.92); opacity: 0; }
+  60% { transform: scale(1.04); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes kronoSplashBar {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+.krono-fade-in {
+  animation: kronoFadeSlideUp 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.krono-pop-in {
+  animation: kronoPopIn 200ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  transform-origin: top right;
+}
+
+// Smooth button & card tactile transitions
+.btn, .qa-btn, .icon-btn, .chip, .segmented-btn {
+  transition: transform 160ms cubic-bezier(0.22, 1, 0.36, 1),
+              background-color 180ms ease,
+              color 180ms ease,
+              box-shadow 180ms ease,
+              border-color 180ms ease !important;
+}
+
+.btn:active:not(:disabled),
+.qa-btn:active:not(:disabled),
+.icon-btn:active {
+  transform: scale(0.96) !important;
+}
+
+// --- Upgraded Header ---
+.krono-header {
+  background: var(--sf);
+  border-bottom: 1px solid var(--bd);
+}
+
+.krono-header-left {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.krono-header-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.krono-brand-tag {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: var(--pri);
+  color: var(--on);
+}
+
+.krono-date-chip {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--mu);
+}
+
+.krono-bell-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--pri);
+  color: var(--on);
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 16px;
+  text-align: center;
+}
+
+.krono-avatar-ring {
+  border: 2px solid var(--pri);
+  padding: 0;
+  cursor: pointer;
+}
+
+// --- Wave Bottom Navigation Bar ---
+.bottom-nav {
+  position: relative;
+  grid-area: nav;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  background: var(--sf);
+  border-top: 1px solid var(--bd);
+  padding: 8px 6px calc(10px + env(safe-area-inset-bottom, 0px));
+  overflow: visible;
+  box-shadow: 0 -4px 18px rgba(0, 0, 0, 0.06);
+}
+
+.bottom-nav-indicator {
+  position: absolute;
+  top: -14px;
+  left: 0;
+  width: 20%;
+  height: calc(100% + 14px);
+  pointer-events: none;
+  transition: transform 340ms cubic-bezier(0.34, 1.45, 0.64, 1);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.bottom-nav-wave {
+  width: 78%;
+  height: 15px;
+  fill: var(--sf);
+  filter: drop-shadow(0 -2px 2px rgba(0, 0, 0, 0.06));
+}
+
+.bottom-nav-pill-line {
+  width: 28px;
+  height: 3.5px;
+  border-radius: 999px;
+  background: var(--pri);
+  box-shadow: 0 0 10px var(--pri);
+  margin-bottom: 4px;
+}
+
+.bottom-nav-btn {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+  padding: 4px 0;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--mu);
+  background: transparent;
+  border: 0;
+  transition: color 200ms ease, transform 240ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.bottom-nav-icon-wrap {
+  display: grid;
+  place-items: center;
+  transition: transform 280ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.bottom-nav-btn.active {
+  color: var(--pri);
+}
+
+.bottom-nav-btn.active .bottom-nav-icon-wrap {
+  transform: translateY(-5px) scale(1.08);
+}
+
+// --- Branded Login Screen ---
+.krono-login-card {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--bd);
+}
+
+.krono-login-badge {
+  display: inline-block;
+  margin: 0 auto;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--pri-s);
+  color: var(--pri);
+}
+
+.krono-logo-mark {
+  animation: kronoLogoPulse 500ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.krono-login-pillars {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin: 4px 0;
+}
+
+.krono-login-pillars span {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--sf2);
+  color: var(--mu);
+}
+
+// --- Highlighted Overview KPI Grid ---
+.krono-kpi-highlight .kpi {
+  border-width: 1.5px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
+}
+
+// --- Horizontal 24-Hour Sliding Timeline ---
+.krono-htimeline-wrap {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  border: 1px solid var(--bd);
+  border-radius: 14px;
+  background: var(--sf2);
+  -webkit-overflow-scrolling: touch;
+}
+
+.krono-htimeline-canvas {
+  position: relative;
+}
+
+.krono-htimeline-ruler {
+  position: sticky;
+  top: 0;
+  height: 28px;
+  background: var(--sf);
+  border-bottom: 1px solid var(--bd);
+  z-index: 3;
+}
+
+.krono-htimeline-hour {
+  position: absolute;
+  top: 0;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  padding-left: 8px;
+  border-left: 1px solid var(--bd);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--mu);
+}
+
+.krono-htimeline-col {
+  position: absolute;
+  width: 1px;
+  background: var(--bd);
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.krono-htimeline-now {
+  position: absolute;
+  width: 2px;
+  background: var(--err);
+  z-index: 5;
+  pointer-events: none;
+}
+
+.krono-htimeline-now-dot {
+  position: absolute;
+  top: -3px;
+  left: -4px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--err);
+}
+
+.krono-htimeline-event {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 6px 10px;
+  border-radius: 10px;
+  text-align: left;
+  overflow: hidden;
+  z-index: 2;
+}
+
+.krono-htimeline-title {
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.krono-htimeline-time {
+  font-size: 10px;
+  opacity: 0.85;
+  white-space: nowrap;
+}
+
+// --- Gymrat Protein Calculator Grid ---
+.krono-input-group {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px;
+}
+
+.krono-input-group input {
+  min-width: 0;
+  width: 100%;
+}
+
+.krono-input-group select {
+  width: 68px;
+  padding-inline: 8px;
+}
+
+.krono-macro-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 2px;
+}
+
+.krono-macro-box {
+  background: var(--sf2);
+  border: 1px solid var(--bd);
+  border-radius: 12px;
+  padding: 10px 12px;
+  display: grid;
+  gap: 2px;
+}
+
+.krono-macro-box.is-primary {
+  background: var(--fit-s);
+  border-color: var(--fit);
+}
+
+.krono-macro-box small {
+  font-size: 11px;
+  color: var(--mu);
+  font-weight: 700;
+}
+
+.krono-macro-box b {
+  font-size: 18px;
+  line-height: 1.15;
+  color: var(--ink);
+}
+
+.krono-macro-box.is-primary b {
+  color: var(--fit);
+}
+
+.krono-macro-box span {
+  font-size: 11px;
+  color: var(--mu);
+  font-weight: 600;
+}
+
+// --- Smooth Opening Splash Overlay ---
+.krono-splash-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: grid;
+  place-items: center;
+  background: var(--bg);
+  transition: opacity 320ms cubic-bezier(0.22, 1, 0.36, 1), transform 320ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.krono-splash-overlay.is-exiting {
+  opacity: 0;
+  transform: scale(1.03);
+  pointer-events: none;
+}
+
+.krono-splash-inner {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  animation: kronoLogoPulse 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.krono-splash-emblem {
+  width: 72px;
+  height: 72px;
+  border-radius: 22px;
+  display: grid;
+  place-items: center;
+  background: var(--pri);
+  color: var(--on);
+  box-shadow: 0 14px 32px rgba(37, 99, 235, 0.28);
+}
+
+.krono-splash-wordmark {
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: 0.22em;
+  color: var(--ink);
+}
+
+.krono-splash-bar {
+  width: 96px;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--sf2);
+  overflow: hidden;
+}
+
+.krono-splash-bar span {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--pri);
+  transform-origin: left;
+  animation: kronoSplashBar 580ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}

@@ -1,21 +1,35 @@
 // src/lib/fitnessView.js
-// Phase 9 PACE 2 — pure view logic for the Fitness screen (no UI, no storage): the texts of the four KPI cards,
-// the weekly chart model, and the "Today's workout" blocks. src/pages/Fitness.jsx only renders what these return;
-// scripts/check-fitness-view.mjs tests them against the numbers in docs/design-preview.html.
+// Phase 9 PACE 2 + 5 — pure view logic for the Fitness screen (no UI, no storage): the texts of the four KPI cards,
+// the weekly/monthly chart model, the "Today's workout" blocks, and the recent workout history rows. src/pages/Fitness.jsx
+// only renders what these return; scripts/check-fitness-view.mjs tests them.
 //
 // Honesty rules (same as src/lib/fitness.js): nothing is invented. No planned workouts -> no goal text; no previous
 // week -> no percentage; no workout yet -> no best day. Status is always a word, never colour alone.
-import { OCCURRENCE_STATUS } from '../models/constants.js';
+import { ENTRY_STATUS, OCCURRENCE_STATUS, SESSION_STATUS } from '../models/constants.js';
 import { getExerciseById } from './exerciseLibrary.js';
-import { durationLabel, restLabel, setsLabel, weekdayName } from './fitness.js';
+import { durationLabel, restLabel, sessionDate, setsLabel, weekdayName } from './fitness.js';
 
 /** The design shows the first 3 exercises of a workout; the rest is summarised as "+N more". */
 export const PREVIEW_ROWS = 3;
+export const HISTORY_LIMIT = 10;
 const PLACEHOLDER = '–';
+const SHORT_MONTHS = Object.freeze(['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']);
 
 const toMinutes = (time) => {
   const m = /^(\d{1,2}):(\d{2})$/.exec(String(time ?? ''));
   return m ? Number(m[1]) * 60 + Number(m[2]) : null;
+};
+
+const shortMonthDay = (date) => {
+  const [, m, d] = String(date ?? '').split('-').map(Number);
+  return m >= 1 && m <= 12 && d >= 1 ? `${SHORT_MONTHS[m - 1]} ${d}` : String(date ?? '');
+};
+
+const shortHistoryDate = (date) => {
+  if (!date) return '';
+  const [y, m, d] = date.split('-').map(Number);
+  if (!y || !m || !d) return '';
+  return `${weekdayName(date).slice(0, 3)}, ${SHORT_MONTHS[m - 1]} ${d}`;
 };
 
 /** Minutes between two 'HH:mm' times, or null when either is invalid or the end is not after the start. */
@@ -58,17 +72,26 @@ export function kpiCards(summary) {
   return KPI_SLOTS.map((slot) => ({ ...slot, value: text[slot.key][0], subtitle: text[slot.key][1] }));
 }
 
-// ---- weekly chart ----
+// ---- weekly / monthly chart ----
 /** Data for the line chart + the text a screen reader gets (DESIGN_LOCK: aria-labels on charts). */
 export function chartModel(progress) {
   const points = progress?.points ?? [];
-  const labels = points.map((p) => weekdayName(p.date).slice(0, 3));
+  const isMonth = progress?.range === 'month';
+  const labels = isMonth
+    ? points.map((p) => String(Number(p.date.slice(8, 10))))
+    : points.map((p) => weekdayName(p.date).slice(0, 3));
+  const totalMinutes = points.reduce((t, p) => t + (Number(p.minutes) || 0), 0);
+  let description = 'No exercise data yet.';
+  if (points.length > 0) {
+    description = isMonth
+      ? `Exercise minutes per day this month: ${points.map((p) => `${shortMonthDay(p.date)} ${p.minutes}`).join(', ')}.`
+      : `Exercise minutes per day this week: ${points.map((p, i) => `${labels[i]} ${p.minutes}`).join(', ')}.`;
+  }
   return {
     labels,
     data: points.map((p) => ({ value: p.minutes })),
-    description: points.length === 0
-      ? 'No exercise data yet.'
-      : `Exercise minutes per day this week: ${points.map((p, i) => `${labels[i]} ${p.minutes}`).join(', ')}.`,
+    totalMinutes,
+    description,
   };
 }
 
@@ -109,4 +132,27 @@ export function workoutBlock(planned, formatTime = (t) => t) {
     })),
     more: Math.max(0, items.length - PREVIEW_ROWS),
   };
+}
+
+// ---- Recent workouts (completed session history) ----
+/** Completed workout sessions formatted for the "Recent workouts" list (newest first). */
+export function historyRows(sessions, limit = HISTORY_LIMIT) {
+  const done = (sessions ?? [])
+    .filter((s) => s?.status === SESSION_STATUS.COMPLETED)
+    .sort((a, b) => String(b.startedAt ?? '').localeCompare(String(a.startedAt ?? '')));
+  const slice = limit != null ? done.slice(0, limit) : done;
+  return slice.map((s) => {
+    const entries = Array.isArray(s.entries) ? s.entries : [];
+    const setsDone = entries.reduce((sum, e) => sum + (Array.isArray(e?.sets) ? e.sets.length : 0), 0);
+    const exercisesDone = entries.filter((e) => e?.status === ENTRY_STATUS.COMPLETED || (Array.isArray(e?.sets) && e.sets.length > 0)).length;
+    const datePart = shortHistoryDate(sessionDate(s));
+    const setsPart = setsDone > 0 ? `${setsDone} ${setsDone === 1 ? 'set' : 'sets'}` : null;
+    const exPart = exercisesDone > 0 ? `${exercisesDone} ${exercisesDone === 1 ? 'exercise' : 'exercises'}` : null;
+    return {
+      id: s.id,
+      title: s.workoutName || 'Workout',
+      duration: durationLabel(s.activeSeconds),
+      subtitle: [datePart, s.category || null, setsPart, exPart].filter(Boolean).join(' · '),
+    };
+  });
 }

@@ -109,3 +109,25 @@ self.addEventListener('fetch', (event) => {
   else if (url.hostname === 'fonts.gstatic.com') event.respondWith(cacheFirst(request, FONTS));
   // Everything else (Firebase, place search, map tiles, other sites) is left alone: the browser fetches it as usual.
 });
+
+self.addEventListener('notificationclick', (event) => {
+  const targetPath = event.notification?.data?.url || '/widget';
+  if (event.notification?.tag !== 'cadence-live-schedule') {
+    event.notification?.close();
+  }
+  const targetUrl = new URL(targetPath.replace(/^\//, ''), new URL(BASE, self.location.origin)).href;
+
+  event.waitUntil((async () => {
+    const windowClients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const client of windowClients) {
+      if (client.url.startsWith(self.location.origin) && 'focus' in client) {
+        if ('navigate' in client) await client.navigate(targetUrl);
+        return client.focus();
+      }
+    }
+    if (self.clients.openWindow) {
+      return self.clients.openWindow(targetUrl);
+    }
+    return undefined;
+  })());
+});

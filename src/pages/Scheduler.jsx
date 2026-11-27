@@ -6,6 +6,8 @@ import { CATEGORIES, CATEGORY_COLOR, OCCURRENCE_STATUS } from '../models/constan
 import { addDays, isDate, toLocalDate } from '../models/common.js';
 import { dateOf, findOverlaps, formatRange, timeOf, to12h, weekDates } from '../lib/timeline.js';
 import { dayCounts, monthGrid, pickDayInMonth, shiftView, viewRange, viewTitle, yearMonths } from '../lib/calendar.js';
+import { coordsOf, travelScheduleView } from '../lib/mapView.js';
+import { fetchRoutes } from '../lib/routeSearch.js';
 import { handleError } from '../lib/errors';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
@@ -33,22 +35,23 @@ const statusWord = (status) => (status === DONE ? 'Done' : status === SKIPPED ? 
 const rowState = (status) => (status === DONE ? ' done' : status === SKIPPED ? ' skipped' : '');
 const HISTORY_DAYS = 30;
 const HISTORY_LIMIT = 10;
-// What the Scheduler shows is built from these collections (activity.list also covers workouts and trips): re-read when another device's changes arrive.
 const REMOTE_COLLECTIONS = ['schedules', 'occurrences', 'workouts', 'destinations'];
 
 function SchedulerHome() {
   const navigate = useNavigate();
-  const { schedule, activity } = useServices();
+  const { schedule, activity, place } = useServices();
   const [params] = useSearchParams();
   const [now, setNow] = useState(() => new Date());
   const [selected, setSelected] = useState(() => (isDate(params.get('date')) ? params.get('date') : toLocalDate()));
   const [view, setView] = useState('week');
   const [category, setCategory] = useState('All');
   const [pickedId, setPickedId] = useState(null);
-  const [data, setData] = useState({ items: [], defs: [], history: [], loading: true, error: '' });
+  const [data, setData] = useState({ items: [], defs: [], places: [], history: [], loading: true, error: '' });
+  const [routeEstimate, setRouteEstimate] = useState(null);
   const [busy, setBusy] = useState(false);
-  const [reload, setReload] = useState(0);   // bumped after a status change to re-read the data
-  useRemoteChanges(REMOTE_COLLECTIONS, () => setReload((n) => n + 1));   // ...and when a sync brings in changes from another device
+  const [deletingAll, setDeletingAll] = useState(false);
+  const [reload, setReload] = useState(0);
+  useRemoteChanges(REMOTE_COLLECTIONS, () => setReload((n) => n + 1));
 
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 60000);
@@ -63,30 +66,65 @@ function SchedulerHome() {
     (async () => {
       try {
         const filter = category === 'All' ? undefined : category;
-        const [items, defs, history] = await Promise.all([
+        const [items, defs, places, history] = await Promise.all([
           activity.list({ from, to, category: filter }),
           schedule.list(),
+          place.listFavorites(),
           view === 'day' ? schedule.listHistory({ from: addDays(today, -HISTORY_DAYS), to: today, category: filter, limit: HISTORY_LIMIT }) : [],
         ]);
-        if (alive) setData({ items, defs, history, loading: false, error: '' });
+        if (alive) setData({ items, defs, places, history, loading: false, error: '' });
       } catch (e) {
         if (alive) setData((d) => ({ ...d, loading: false, error: handleError(e, 'scheduler') }));
       }
     })();
     return () => { alive = false; };
-  }, [activity, schedule, from, to, category, view, today, reload]);
+  }, [activity, schedule, place, from, to, category, view, today, reload]);
 
   const dayItems = data.items.filter((a) => dateOf(a.startsAt) === selected);
   const counts = useMemo(() => dayCounts(data.items), [data.items]);
   const overlaps = findOverlaps(dayItems);
   const current = dayItems.find((a) => a.id === pickedId) ?? dayItems[0] ?? null;
   const def = current ? data.defs.find((s) => s.id === current.refs.scheduleId) : null;
+  const linkedDest = def?.destinationId ? data.places.find((p) => p.id === def.destinationId) ?? null : null;
   const legend = CATEGORIES.map((c) => [c, data.defs.filter((s) => s.category === c).length]).filter(([, n]) => n > 0);
+
+  useEffect(() => {
+    setRouteEstimate(null);
+    const destCoords = coordsOf(linkedDest);
+    if (!destCoords || !navigator.onLine || !('geolocation' in navigator)) return undefined;
+    let alive = true;
+    const controller = new AbortController();
+    (async () => {
+      try {
+        if (navigator.permissions?.query) {
+          const perm = await navigator.permissions.query({ name: 'geolocation' });
+          if (perm.state !== 'granted') return;
+        } else {
+          return;
+        }
+        const pos = await new Promise((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: false, timeout: 8000, maximumAge: 60000 });
+        });
+        const routes = await fetchRoutes(
+          { origin: { latitude: pos.coords.latitude, longitude: pos.coords.longitude }, destination: destCoords, mode: 'driving' },
+          { signal: controller.signal },
+        );
+        if (alive && routes[0]) setRouteEstimate(routes[0]);
+      } catch {
+        // Optional live estimate
+      }
+    })();
+    return () => { alive = false; controller.abort(); };
+  }, [linkedDest]);
+
+  const travelInfo = useMemo(
+    () => travelScheduleView({ schedule: def, destination: linkedDest, routeEstimate }),
+    [def, linkedDest, routeEstimate],
+  );
 
   const go = (n) => { setSelected((d) => shiftView(view, d, n)); setPickedId(null); };
   const pickDay = (d) => { setSelected(d); setPickedId(null); };
 
-  // Done / Skipped / Undo for the selected occurrence (goes through the service, then the data is re-read).
   const mark = async (next) => {
     if (!current || busy) return;
     setBusy(true);
@@ -97,6 +135,21 @@ function SchedulerHome() {
       setData((d) => ({ ...d, error: handleError(e, 'scheduler-status') }));
     } finally {
       setBusy(false);
+    }
+  };
+
+  const handleDeleteAllSchedules = async () => {
+    if (deletingAll || busy) return;
+    if (!window.confirm('Delete ALL schedule records, classes, history, and reminders? This cannot be undone.')) return;
+    setDeletingAll(true);
+    try {
+      await schedule.removeAll();
+      setPickedId(null);
+      setReload((n) => n + 1);
+    } catch (e) {
+      setData((d) => ({ ...d, error: handleError(e, 'scheduler') }));
+    } finally {
+      setDeletingAll(false);
     }
   };
 
@@ -120,7 +173,15 @@ function SchedulerHome() {
         <Pill variant="fit">{def.reminder.enabled ? (def.reminder.useAlarm ? 'Notify + alarm' : 'Notify only') : 'Reminder off'}</Pill>
         {def.reminder.enabled && <Pill variant="fit">{def.reminder.offsetMinutes === 0 ? 'At start time' : `${def.reminder.offsetMinutes} min before`}</Pill>}
         <Pill variant="fit">{`Repeat: ${repeatLabel(def.repeat)}`}</Pill>
+        {travelInfo?.leaveText && <Pill variant="map">{travelInfo.leaveText}</Pill>}
       </div>
+      {travelInfo && (
+        <div className="mt-3">
+          {travelInfo.destinationName && <b className="row-title">{travelInfo.destinationName}</b>}
+          <p className="row-subtitle">{travelInfo.subtitle}</p>
+          <Button variant="map" fullWidth leftIcon="nav" className="mt-2" onClick={() => navigate(travelInfo.mapHref)}>Open route</Button>
+        </div>
+      )}
       {canMark && (
         <div className="status-actions">
           {status === SCHEDULED && (
@@ -175,8 +236,13 @@ function SchedulerHome() {
 
   return (
     <div className="stack">
-      <div className="page-actions">
+      <div className="page-actions d-flex flex-wrap gap-2">
         <Button leftIcon="plus" onClick={() => navigate(`/scheduler/new?date=${selected}`)}>New schedule</Button>
+        {data.defs.length > 0 && (
+          <Button variant="secondary" leftIcon="trash" loading={deletingAll} disabled={busy} onClick={handleDeleteAllSchedules}>
+            Delete all schedules
+          </Button>
+        )}
       </div>
       <h3 className="section-divider">View and filters</h3>
       {legend.length > 0 && (

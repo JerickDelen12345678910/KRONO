@@ -1,11 +1,11 @@
-// Phase 9 PACE 3b + 3c — checks for src/lib/workoutForm.js (pure; runs in plain Node, against the REAL exercise library).
+// Phase 9 PACE 3b + 3c + 4c — checks for src/lib/workoutForm.js (pure; runs in plain Node, against the REAL exercise library).
 import assert from 'node:assert/strict';
 import { EXERCISE_LIBRARY, getExerciseById } from '../src/lib/exerciseLibrary.js';
 import { createWorkout, createWorkoutItem, validateWorkout } from '../src/models/workout.js';
 import {
-  LIMITS, PICKER_LIMIT, addExercise, competingWorkouts, deleteMessage, draftFromWorkout, draftToInput, draftToNewWorkout, emptyDraft, exerciseCountLabel,
-  isLinkLost, itemErrors, itemsWithExercise, moveItem, pickerResults, pickerRow, removeItem, replaceMessage, rivalsToUnlink, scheduleLabel,
-  scheduleOptions, scheduleWhen, updateItem, validateDraft, workoutRow,
+  LIMITS, PICKER_LIMIT, addExercise, canStartWorkout, competingWorkouts, deleteMessage, draftFromWorkout, draftToInput, draftToNewWorkout, emptyDraft,
+  exerciseCountLabel, isLinkLost, itemErrors, itemsWithExercise, moveItem, pickerResults, pickerRow, removeItem, replaceMessage, rivalsToUnlink,
+  scheduleLabel, scheduleOptions, scheduleWhen, updateItem, validateDraft, workoutRow,
 } from '../src/lib/workoutForm.js';
 
 let n = 0;
@@ -136,6 +136,7 @@ eq(exerciseCountLabel(1), '1 exercise', 'singular');
 eq(exerciseCountLabel(4), '4 exercises', 'plural');
 eq(workoutRow(sample), { id: 'sample-upper-body', title: 'Upper body', amount: '2 ex', subtitle: 'Strength · Scheduled' }, 'row of a scheduled workout');
 eq(workoutRow(createWorkout({ id: 'w', name: '', category: 'Core' })), { id: 'w', title: 'Untitled workout', amount: '0 ex', subtitle: 'Core' }, 'row of an unscheduled, unnamed workout');
+ok(canStartWorkout(sample) && !canStartWorkout(createWorkout({ id: 'w', name: 'Empty', category: 'Core' })) && !canStartWorkout(null), 'canStartWorkout requires at least one exercise');
 const pr = pickerRow(reps);
 eq([pr.id, pr.title, pr.subtitle], [reps.id, reps.name, `${reps.category} · ${reps.difficulty}`], 'picker row');
 ok(/^\d+×/.test(pr.amount), 'picker amount like 3×10');
@@ -203,4 +204,4 @@ eq(workoutRow(wa).subtitle, 'Strength · Scheduled', 'row: without a schedule li
 const linked = draftToNewWorkout({ ...emptyDraft({ exercise: reps }), name: 'Leg day', scheduleId: 's-daily' });
 ok(linked.scheduleId === 's-daily' && validateWorkout(linked).valid, 'a new record can start linked');
 
-console.log(`Phase 9 PACE 3b + 3c workout form OK (${n} checks)`);
+console.log(`Phase 9 PACE 3b + 3c + 4c workout form OK (${n} checks)`);
