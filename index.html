@@ -6,7 +6,7 @@
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" href="/pwa/apple-touch-icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#0B1120" />
+    <meta name="theme-color" content="#050B16" />
     <meta name="description" content="KRONO — Your schedules, alarms, workouts, and routes synced across web and Android." />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -16,9 +16,83 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap">
     <title>KRONO — Schedule · Fitness · Navigation</title>
+    <style>
+      html, body { margin: 0; padding: 0; background: #050b16; }
+      #krono-boot-splash {
+        min-height: 100dvh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: space-between;
+        padding: 18vh 24px 8vh;
+        box-sizing: border-box;
+        background: radial-gradient(circle at 50% 42%, #0e2442 0%, #071020 48%, #050b16 100%);
+        color: #f8fafc;
+        font-family: 'Manrope', system-ui, -apple-system, sans-serif;
+        text-align: center;
+      }
+      .krono-boot-center {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+      .krono-boot-ring {
+        width: 148px;
+        height: 148px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        border: 4px solid #38bdf8;
+        box-shadow: 0 0 36px rgba(56, 189, 248, 0.45), inset 0 0 24px rgba(56, 189, 248, 0.25);
+        margin-bottom: 28px;
+        animation: kronoPulse 1.8s ease-in-out infinite;
+      }
+      .krono-boot-title {
+        margin: 0;
+        font-size: 36px;
+        font-weight: 800;
+        letter-spacing: 0.12em;
+      }
+      .krono-boot-sub {
+        margin: 8px 0 0;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.16em;
+        color: #38bdf8;
+      }
+      .krono-boot-footer {
+        font-size: 12px;
+        color: #94a3b8;
+      }
+      .krono-boot-loading {
+        margin-top: 8px;
+        font-size: 12px;
+        color: #cbd5e1;
+      }
+      @keyframes kronoPulse {
+        0%, 100% { transform: scale(1); box-shadow: 0 0 32px rgba(56, 189, 248, 0.42), inset 0 0 22px rgba(56, 189, 248, 0.22); }
+        50% { transform: scale(1.03); box-shadow: 0 0 46px rgba(56, 189, 248, 0.65), inset 0 0 30px rgba(56, 189, 248, 0.35); }
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div id="krono-boot-splash" aria-label="Loading KRONO">
+        <div class="krono-boot-center">
+          <div class="krono-boot-ring">
+            <svg width="76" height="76" viewBox="0 0 108 108" fill="none">
+              <path d="M40 30V78M68 30L46 54L70 78" stroke="#F8FAFC" stroke-width="11" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </div>
+          <h1 class="krono-boot-title">KRONO</h1>
+          <p class="krono-boot-sub">SCHEDULE · FITNESS · NAVIGATION</p>
+        </div>
+        <div class="krono-boot-footer">
+          <div>All-in-one organizer · Keep moving forward</div>
+          <div class="krono-boot-loading">Loading…</div>
+        </div>
+      </div>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
