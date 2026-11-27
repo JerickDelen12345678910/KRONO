@@ -6,28 +6,28 @@
     android:background="@drawable/widget_glass_bg"
     android:gravity="center_vertical"
     android:orientation="vertical"
-    android:padding="12dp">
+    android:padding="13dp">
 
-    <!-- Top Bar: Brand Tag + Live Status Pill -->
+    <!-- Top Bar: 3D Brand Pill + Highlighted Live Status Pill -->
     <RelativeLayout
         android:id="@+id/widget_top_bar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="6dp">
+        android:layout_marginBottom="8dp">
 
         <TextView
             android:id="@+id/widget_brand"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_alignParentStart="true"
-            android:background="#3338BDF8"
+            android:background="@drawable/widget_time_pill"
             android:letterSpacing="0.16"
-            android:paddingStart="8dp"
-            android:paddingTop="2dp"
-            android:paddingEnd="8dp"
-            android:paddingBottom="2dp"
+            android:paddingStart="9dp"
+            android:paddingTop="3dp"
+            android:paddingEnd="9dp"
+            android:paddingBottom="3dp"
             android:text="KRONO"
-            android:textColor="#7DD3FC"
+            android:textColor="#E0F2FE"
             android:textSize="10sp"
             android:textStyle="bold" />
 
@@ -36,15 +36,20 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_alignParentEnd="true"
+            android:background="@drawable/widget_status_pill"
             android:ellipsize="end"
             android:maxLines="1"
-            android:text="● LIVE"
+            android:paddingStart="9dp"
+            android:paddingTop="3dp"
+            android:paddingEnd="9dp"
+            android:paddingBottom="3dp"
+            android:text="• SCHEDULE · LIVE"
             android:textColor="#38BDF8"
-            android:textSize="11sp"
+            android:textSize="10.5sp"
             android:textStyle="bold" />
     </RelativeLayout>
 
-    <!-- Main Row: Framed Mascot + Highlighted Course Code / Time / Info -->
+    <!-- Main Row: 3D Framed Icon/Mascot + Highlighted Time & Schedule Info -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
@@ -54,17 +59,17 @@
 
         <FrameLayout
             android:id="@+id/widget_mascot_frame"
-            android:layout_width="56dp"
-            android:layout_height="56dp"
-            android:layout_marginEnd="10dp"
-            android:background="@drawable/widget_glass_bg"
-            android:padding="3dp">
+            android:layout_width="60dp"
+            android:layout_height="60dp"
+            android:layout_marginEnd="12dp"
+            android:background="@drawable/widget_3d_icon_frame"
+            android:padding="4dp">
 
             <ImageView
                 android:id="@+id/widget_mascot"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:contentDescription="Krono Mascot"
+                android:contentDescription="Krono 3D Mascot"
                 android:scaleType="centerCrop"
                 android:src="@drawable/mascot_schedule" />
         </FrameLayout>
@@ -75,29 +80,37 @@
             android:layout_weight="1"
             android:orientation="vertical">
 
+            <!-- Highlighted Time Pill -->
             <TextView
                 android:id="@+id/widget_time"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:background="@drawable/widget_time_pill"
                 android:ellipsize="end"
                 android:maxLines="1"
+                android:paddingStart="9dp"
+                android:paddingTop="3dp"
+                android:paddingEnd="9dp"
+                android:paddingBottom="3dp"
                 android:text="NOW · 08:00 AM – 09:30 AM"
-                android:textColor="#38BDF8"
+                android:textColor="#7DD3FC"
                 android:textSize="11sp"
                 android:textStyle="bold" />
 
+            <!-- Primary Title / Course Code -->
             <TextView
                 android:id="@+id/widget_title"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
+                android:layout_marginTop="5dp"
                 android:ellipsize="end"
                 android:maxLines="1"
                 android:text="CS 201"
                 android:textColor="#F8FAFC"
-                android:textSize="17sp"
+                android:textSize="18sp"
                 android:textStyle="bold" />
 
+            <!-- Location / Room -->
             <TextView
                 android:id="@+id/widget_location"
                 android:layout_width="wrap_content"
@@ -110,11 +123,12 @@
                 android:textSize="11sp"
                 android:textStyle="bold" />
 
+            <!-- Upcoming / Secondary Info -->
             <TextView
                 android:id="@+id/widget_subtitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
+                android:layout_marginTop="3dp"
                 android:ellipsize="end"
                 android:maxLines="1"
                 android:text="Up next: MATH 210 (10:00 AM)"
