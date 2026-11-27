@@ -6,6 +6,7 @@ import { stopAlarmAudio } from './alarmAudio.js';
 const KronoAlarm = registerPlugin('KronoAlarm');
 
 export const CHANNEL_NOTIFY = 'krono-reminders-v2';
+export const CHANNEL_ALARM = 'krono-alarms-v2';
 
 export function notificationIdFor(id) {
   const s = String(id ?? '');
