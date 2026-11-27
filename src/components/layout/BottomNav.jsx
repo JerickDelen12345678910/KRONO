@@ -3,7 +3,7 @@ import { Icon } from '../ui/Icon';
 
 const navItems = [
   { path: '/', label: 'Home', icon: 'home', exact: true },
-  { path: '/scheduler', label: 'Scheduler', icon: 'cal' },
+  { path: '/scheduler', label: 'Schedule', icon: 'cal' },
   { path: '/fitness', label: 'Fitness', icon: 'dumb' },
   { path: '/map', label: 'Map', icon: 'pin' },
   { path: '/account', label: 'Account', icon: 'user' },
@@ -18,16 +18,12 @@ export function BottomNav() {
 
   return (
     <nav className="bottom-nav" role="navigation" aria-label="Main navigation">
-      {/* Sliding wave crest & active indicator bar */}
       <div
-        className="bottom-nav-indicator"
+        className="bottom-nav-pill-track"
         style={{ transform: `translateX(${activeIdx * 100}%)` }}
         aria-hidden="true"
       >
-        <svg viewBox="0 0 120 26" preserveAspectRatio="none" className="bottom-nav-wave">
-          <path d="M0,26 C28,26 36,4 60,4 C84,4 92,26 120,26 Z" />
-        </svg>
-        <span className="bottom-nav-pill-line" />
+        <div className="bottom-nav-pill-glow" />
       </div>
 
       {navItems.map(({ path, label, icon, exact }) => (

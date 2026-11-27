@@ -181,11 +181,20 @@ export function Fitness() {
   const stale = data.abandoned[0] ?? null;
   const hasAnyFitnessData = data.workouts.length > 0 || data.history.length > 0 || data.abandoned.length > 0;
 
+  const bodyFatStatus = useMemo(() => {
+    if (!proteinForm.bodyFat.trim()) return { valid: false, warning: '' };
+    const bf = Number(proteinForm.bodyFat);
+    if (!Number.isFinite(bf) || bf < 3 || bf > 60) {
+      return { valid: false, warning: 'Enter 3–60% (using total body weight for now)' };
+    }
+    return { valid: true, warning: '' };
+  }, [proteinForm.bodyFat]);
+
   const proteinTargets = useMemo(() => {
     const rawW = Math.max(30, Math.min(550, Number(proteinForm.weight) || 70));
     const weightKg = proteinForm.unit === 'lb' ? rawW * 0.45359237 : rawW;
     const bf = Number(proteinForm.bodyFat);
-    const hasValidBf = proteinForm.bodyFat !== '' && Number.isFinite(bf) && bf >= 3 && bf <= 60;
+    const hasValidBf = proteinForm.bodyFat.trim() !== '' && Number.isFinite(bf) && bf >= 3 && bf <= 60;
     const lbmKg = hasValidBf ? weightKg * (1 - bf / 100) : null;
     const freqBonus = Number(proteinForm.training) >= 5 ? 0.1 : 0;
 
@@ -435,14 +444,27 @@ export function Fitness() {
                   </label>
 
                   <label className="form-field">
-                    Body fat %
-                    <input
-                      type="number"
-                      inputMode="decimal"
-                      placeholder="Optional"
-                      value={proteinForm.bodyFat}
-                      onChange={(e) => setProteinForm((f) => ({ ...f, bodyFat: e.target.value }))}
-                    />
+                    <span>Body fat % <small className="field-hint">(optional)</small></span>
+                    <div className="krono-input-group">
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        maxLength={5}
+                        placeholder="e.g. 15"
+                        aria-label="Body fat percentage (optional)"
+                        value={proteinForm.bodyFat}
+                        onChange={(e) => {
+                          const cleaned = e.target.value
+                            .replace(/[^0-9.]/g, '')
+                            .replace(/(\..*)\./g, '$1');
+                          setProteinForm((f) => ({ ...f, bodyFat: cleaned }));
+                        }}
+                      />
+                      <span className="krono-input-suffix">%</span>
+                    </div>
+                    {bodyFatStatus.warning && (
+                      <small className="field-error">{bodyFatStatus.warning}</small>
+                    )}
                   </label>
                 </div>
 

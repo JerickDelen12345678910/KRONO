@@ -22,6 +22,7 @@ import { Row } from '../components/ui/Row';
 
 const REMOTE_COLLECTIONS = ['destinations'];
 const REROUTE_THRESHOLD_METERS = 25;
+const MAP_HISTORY_KEY = 'krono_map_history_v1';
 
 const subscribeOnline = (notify) => {
   window.addEventListener('online', notify);
@@ -31,6 +32,23 @@ const subscribeOnline = (notify) => {
 const useOnline = () => useSyncExternalStore(subscribeOnline, () => navigator.onLine, () => true);
 
 const countLabel = (n) => `${n} ${n === 1 ? 'place' : 'places'}`;
+
+function readHistory() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(MAP_HISTORY_KEY) || '[]');
+    return Array.isArray(raw) ? raw : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeHistory(list) {
+  try {
+    localStorage.setItem(MAP_HISTORY_KEY, JSON.stringify(list.slice(0, 25)));
+  } catch {
+    // Ignore storage quota
+  }
+}
 
 function PlaceItem({ title, subtitle, selected, onClick }) {
   return (
@@ -52,14 +70,17 @@ export function MapPage() {
   const [selectedKey, setSelectedKey] = useState(null);
   const [focus, setFocus] = useState(null);
   const [me, setMe] = useState(null);
-  const [routedMe, setRoutedMe] = useState(null);      // throttled GPS anchor for route recalculation (updates every >= 25m)
+  const [routedMe, setRoutedMe] = useState(null);
   const [locating, setLocating] = useState(false);
   const [trackingLive, setTrackingLive] = useState(false);
   const [busy, setBusy] = useState(false);
   const [errors, setErrors] = useState({ load: '', search: '', action: '', geo: '', route: '' });
   const [reload, setReload] = useState(0);
 
-  // Route state + direct Start/Destination search inputs
+  // History state with single-item pop-up delete and Delete All
+  const [history, setHistory] = useState(() => readHistory());
+  const [activeHistoryId, setActiveHistoryId] = useState(null);
+
   const [activeTarget, setActiveTarget] = useState('start');
   const [startQuery, setStartQuery] = useState('');
   const [destQuery, setDestQuery] = useState('');
@@ -81,6 +102,32 @@ export function MapPage() {
 
   const setError = (key, message) => setErrors((e) => ({ ...e, [key]: message }));
   const pushFocus = (target) => { if (target) setFocus((f) => ({ ...target, seq: (f?.seq ?? 0) + 1 })); };
+
+  const recordHistoryEntry = useCallback((entry) => {
+    if (!entry?.title) return;
+    setHistory((prev) => {
+      const filtered = prev.filter((h) => h.title.toLowerCase() !== entry.title.toLowerCase());
+      const next = [{ id: `hist-${Date.now()}`, ...entry, savedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }, ...filtered].slice(0, 25);
+      writeHistory(next);
+      return next;
+    });
+  }, []);
+
+  const deleteHistoryItem = (id) => {
+    setHistory((prev) => {
+      const next = prev.filter((h) => h.id !== id);
+      writeHistory(next);
+      return next;
+    });
+    if (activeHistoryId === id) setActiveHistoryId(null);
+  };
+
+  const deleteAllHistory = () => {
+    if (!window.confirm('Delete all map search & route history?')) return;
+    setHistory([]);
+    setActiveHistoryId(null);
+    writeHistory([]);
+  };
 
   useEffect(() => {
     const t = setInterval(() => setNowTick(new Date()), 60000);
@@ -124,7 +171,6 @@ export function MapPage() {
     resetWidgetToAutoMode();
   }, []);
 
-  // Live GPS watcher whenever Start is set to "My location" (`routeStartKey === 'me'`)
   useEffect(() => {
     if (routeStartKey !== 'me') {
       setTrackingLive(false);
@@ -212,15 +258,8 @@ export function MapPage() {
     }
   }, [activeTarget, rememberResultPlace, routeDestKey]);
 
-  // Fetch routes whenever origin, destination, travel mode, online status, or live movement triggers
   useEffect(() => {
-    if (!routeOrigin || !routeDestination) {
-      setRoutes([]);
-      setSelectedRouteId(null);
-      setError('route', '');
-      return undefined;
-    }
-    if (!online) {
+    if (!routeOrigin || !routeDestination || !online) {
       setRoutes([]);
       setSelectedRouteId(null);
       setError('route', '');
@@ -247,8 +286,13 @@ export function MapPage() {
         if (found[0]) {
           const primaryView = routeOptionView(found[0], 0, { selected: true, arriveBy, nowDate: new Date() });
           setWidgetMapMode(routeDestination.name || destQuery || 'Destination', primaryView.durationText || 'Navigating');
+          recordHistoryEntry({
+            title: `${routeOrigin.name} → ${routeDestination.name}`,
+            subtitle: `${primaryView.durationText} · ${primaryView.distanceText}`,
+            latitude: routeDestination.latitude,
+            longitude: routeDestination.longitude,
+          });
         }
-        // Auto-fit route on initial calculation or manual Show Route; keep current zoom while walking live
         if (found[0] && routeStartKey !== 'me') pushFocus(focusForRoute(found[0]));
         else if (found[0] && routeTrigger > 0) pushFocus(focusForRoute(found[0]));
       })
@@ -286,6 +330,12 @@ export function MapPage() {
     setSelectedKey(place.key);
     pushFocus(focusFor([place]));
     assignPointToTarget(place, overrideTarget ?? activeTarget);
+    recordHistoryEntry({
+      title: place.name,
+      subtitle: place.address || 'Selected place',
+      latitude: place.latitude,
+      longitude: place.longitude,
+    });
   }
 
   function handlePickMap({ latitude, longitude }) {
@@ -415,6 +465,12 @@ export function MapPage() {
       setResults(found);
       setSelectedKey(null);
       pushFocus(focusFor(found));
+      recordHistoryEntry({
+        title: q,
+        subtitle: found[0] ? `Found: ${found[0].name}` : 'Search query',
+        latitude: found[0]?.latitude ?? null,
+        longitude: found[0]?.longitude ?? null,
+      });
     } catch (e) {
       if (e?.name !== 'AbortError') setError('search', e?.name === 'PlaceSearchError' ? e.message : handleError(e, 'map'));
     } finally {
@@ -485,7 +541,7 @@ export function MapPage() {
   const mapLabel = `Map of the Philippines with ${countLabel(markers.length)} marked. Tap a place or tap anywhere on the map to set Start or Destination.`;
 
   return (
-    <div>
+    <div className="krono-fade-in">
       {messages.map((m) => <NoteBanner key={m} className="mb-3">{m}</NoteBanner>)}
 
       <div className="cols">
@@ -679,6 +735,60 @@ export function MapPage() {
                 {saved.map((d) => {
                   const row = savedRow(d);
                   return <PlaceItem key={row.id} title={row.title} subtitle={row.subtitle} selected={selection?.key === row.key} onClick={() => select(row.key)} />;
+                })}
+              </div>
+            )}
+          </Card>
+
+          {/* Map Search & Route History with Single Pop-Up Delete & Delete All */}
+          <Card
+            variant="map"
+            header={(
+              <>
+                Recent history
+                {history.length > 0 && (
+                  <Button variant="ghost" size="sm" leftIcon="trash" onClick={deleteAllHistory}>
+                    Delete all
+                  </Button>
+                )}
+              </>
+            )}
+          >
+            {history.length === 0 ? (
+              <p className="empty-hint mb-0">No recent searches or routes yet.</p>
+            ) : (
+              <div className="krono-history-list">
+                {history.map((item) => {
+                  const isOpen = activeHistoryId === item.id;
+                  return (
+                    <div key={item.id} className="krono-history-item">
+                      <button
+                        type="button"
+                        className="place-item"
+                        onClick={() => {
+                          setActiveHistoryId((prev) => (prev === item.id ? null : item.id));
+                          if (item.latitude != null && item.longitude != null) {
+                            pushFocus({ latitude: item.latitude, longitude: item.longitude, zoom: 15 });
+                          }
+                        }}
+                      >
+                        <Row time={item.savedAt || ''} barColor="map" title={item.title} subtitle={item.subtitle} />
+                      </button>
+
+                      {isOpen && (
+                        <div className="krono-history-popover krono-pop-in">
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            leftIcon="trash"
+                            onClick={() => deleteHistoryItem(item.id)}
+                          >
+                            Delete
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  );
                 })}
               </div>
             )}

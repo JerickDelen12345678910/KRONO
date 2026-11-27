@@ -11,14 +11,24 @@ function toMinutes(hhmm) {
   return h * 60 + m;
 }
 
-/** Switches the Android home-screen widget to Map Mascot mode when navigating or leaving soon. */
-export async function setWidgetMapMode(destinationName, etaText = 'Navigating', subtitle = 'Tap ➤ Go for directions') {
+function extractCourseCode(scheduleObj) {
+  if (scheduleObj?.courseCode && String(scheduleObj.courseCode).trim()) {
+    return String(scheduleObj.courseCode).trim();
+  }
+  const descMatch = /Course Code:\s*([A-Z]{2,10}\s*\d{1,4}(?:-[A-Z0-9]+)?)/i.exec(String(scheduleObj?.description ?? ''));
+  if (descMatch) return descMatch[1].toUpperCase();
+  const titleMatch = /^([A-Z]{2,10}\s*\d{1,4}(?:-[A-Z0-9]+)?)\b/.exec(String(scheduleObj?.title ?? '').trim());
+  if (titleMatch) return titleMatch[1].toUpperCase();
+  return '';
+}
+
+export async function setWidgetMapMode(destinationName, etaText = 'Navigating', subtitle = 'Live route active') {
   if (!Capacitor.isNativePlatform()) return;
   try {
     await NativeScheduleWidget.setActiveMode({
       mode: 'map',
       time: etaText,
-      title: `To: ${destinationName || 'Destination'}`,
+      title: destinationName || 'Destination',
       subtitle,
     });
   } catch (err) {
@@ -26,7 +36,6 @@ export async function setWidgetMapMode(destinationName, etaText = 'Navigating', 
   }
 }
 
-/** Resets the Android home-screen widget back to automatic Schedule / Gym mascot detection. */
 export async function resetWidgetToAutoMode() {
   if (!Capacitor.isNativePlatform()) return;
   try {
@@ -36,7 +45,6 @@ export async function resetWidgetToAutoMode() {
   }
 }
 
-/** Reads native streak count, completed widget IDs, and pending post-gym recovery flag. */
 export async function getNativeWidgetState() {
   const webRecovery = typeof localStorage !== 'undefined' ? localStorage.getItem(WEB_RECOVERY_KEY) : null;
   if (!Capacitor.isNativePlatform()) {
@@ -60,14 +68,12 @@ export async function getNativeWidgetState() {
   }
 }
 
-/** Flags that a workout just finished so Dashboard suggests a 30m recovery/meal block. */
 export function triggerPostGymRecovery(workoutName = 'Workout') {
   if (typeof localStorage !== 'undefined') {
     localStorage.setItem(WEB_RECOVERY_KEY, workoutName || 'Workout');
   }
 }
 
-/** Clears the post-gym recovery suggestion banner after user adds or dismisses it. */
 export async function clearPostGymRecovery() {
   if (typeof localStorage !== 'undefined') {
     localStorage.removeItem(WEB_RECOVERY_KEY);
@@ -80,24 +86,9 @@ export async function clearPostGymRecovery() {
   }
 }
 
-/** Syncs today's schedule & workout items, reconciles widget "Done" taps, and activates smart "Leave Now" mode. */
 export async function syncNativeScheduleWidget(scheduleService, today = toLocalDate(), leaveCard = null) {
   if (!scheduleService) return;
   try {
-    // 1. Reconcile any tasks marked "Done" directly from the Android home-screen widget
-    if (Capacitor.isNativePlatform()) {
-      const state = await getNativeWidgetState();
-      for (const doneId of state.completedIds) {
-        if (doneId) {
-          try {
-            await scheduleService.setOccurrenceStatus(doneId, OCCURRENCE_STATUS.DONE);
-          } catch {
-            // Already updated or removed
-          }
-        }
-      }
-    }
-
     const [schedules, occurrences] = await Promise.all([
       scheduleService.list(),
       scheduleService.listOccurrences({ from: today, to: addDays(today, 1) }),
@@ -108,16 +99,19 @@ export async function syncNativeScheduleWidget(scheduleService, today = toLocalD
       (o) => !o.deleted && o.date === today && o.status === OCCURRENCE_STATUS.SCHEDULED && byId.has(o.scheduleId)
     );
 
-    // 2. Sync to Native Android Home-Screen Widget (KRONO)
     if (Capacitor.isNativePlatform()) {
       const nativeItems = activeOccurrences.map((o) => {
         const s = byId.get(o.scheduleId);
+        const courseCode = extractCourseCode(s);
         return {
           id: o.id,
           date: o.date,
           startTime: o.startTime,
           endTime: o.endTime,
-          title: s.title,
+          // Widget displays Course Code if present so long subject names never get truncated
+          title: courseCode || s.title,
+          fullTitle: s.title,
+          courseCode,
           category: s.category ?? '',
           type: s.category ?? '',
           location: s.location ?? '',
@@ -128,17 +122,15 @@ export async function syncNativeScheduleWidget(scheduleService, today = toLocalD
         itemsJson: JSON.stringify(nativeItems),
       });
 
-      // 3. Smart "Leave Now" Auto-Trigger (switches widget to Map Mascot when it's time to depart)
       if (leaveCard && (leaveCard.pill?.variant === 'warn' || leaveCard.pill?.variant === 'err' || /leave now|in \d+m/i.test(leaveCard.pill?.label ?? ''))) {
         await setWidgetMapMode(
           leaveCard.title || 'Next Class',
           leaveCard.pill?.label || 'Leave Soon',
-          leaveCard.subtitle || 'Tap ➤ Go for directions'
+          leaveCard.subtitle || 'Depart soon for your class'
         );
       }
     }
 
-    // 4. Sync to PWA Live Notification (if granted)
     if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
       const todayActs = activeOccurrences.map((o) => {
         const s = byId.get(o.scheduleId);
@@ -159,7 +151,6 @@ export async function syncNativeScheduleWidget(scheduleService, today = toLocalD
   }
 }
 
-/** Pins or refreshes the live schedule notification in the notification bar and lock screen. */
 export async function syncPwaLiveNotification(widget, { requestPermission = false } = {}) {
   if (typeof window === 'undefined' || !('Notification' in window)) return 'unsupported';
   let perm = Notification.permission;
@@ -198,7 +189,6 @@ export async function syncPwaLiveNotification(widget, { requestPermission = fals
   return 'granted';
 }
 
-/** Computes the live "Happening Now" widget model for Dashboard, /widget, and Notification Shade. */
 export function buildNowWidgetModel(todayActivities = [], nowDate = new Date()) {
   const hh = String(nowDate.getHours()).padStart(2, '0');
   const mm = String(nowDate.getMinutes()).padStart(2, '0');
