@@ -206,7 +206,7 @@ export function Dashboard() {
         </Card>
       )}
 
-      {/* Highlighted Overview KPIs */}
+      {/* Overview KPIs */}
       <section aria-labelledby="overview-heading">
         <h3 id="overview-heading" className="section-divider">Overview</h3>
         <div className="kpi-grid krono-kpi-highlight">
@@ -276,12 +276,15 @@ export function Dashboard() {
               )}
             </Card>
 
-            {/* Next Up Card */}
+            {/* Next Up Card (Unified Dark/Light Surface) */}
             <div className="next-card">
-              <small>{next ? `Next up · ${next.when}` : 'Next up'}</small>
+              <div className="next-card-top">
+                <span className="next-card-kicker">{next ? `Next up · ${next.when}` : 'Next up'}</span>
+                {next && <Pill variant="pri">Upcoming</Pill>}
+              </div>
               <h3>{next ? next.title : data.loaded ? 'All clear' : 'Loading…'}</h3>
-              {next && <small>{snoozeNote || next.meta}</small>}
-              <div style={{ display: 'flex', gap: '8px' }}>
+              {next && <p className="next-card-meta">{snoozeNote || next.meta}</p>}
+              <div className="next-card-actions">
                 {next ? (
                   <>
                     <Button fullWidth={!nextReminder} leftIcon="cal" onClick={() => navigate(next.route)}>Open</Button>
@@ -296,22 +299,6 @@ export function Dashboard() {
                 )}
               </div>
             </div>
-
-            {/* Leave for … Card */}
-            {leaveCard && (
-              <Card variant="map" header={<>{leaveCard.heading} <Pill variant={leaveCard.pill.variant}>{leaveCard.pill.label}</Pill></>}>
-                <div className="file-item">
-                  <span className="icon-btn" style={{ background: 'var(--map-s)', color: 'var(--map)' }}>
-                    <Icon name="nav" />
-                  </span>
-                  <div style={{ flex: 1 }}>
-                    <b>{leaveCard.title}</b>
-                    <small style={{ color: 'var(--mu)' }}>{leaveCard.subtitle}</small>
-                  </div>
-                  <Button variant="map" size="sm" onClick={() => navigate(leaveCard.mapRoute)}>Route</Button>
-                </div>
-              </Card>
-            )}
 
             {/* Quick Actions */}
             <div className="qa-grid">
@@ -334,10 +321,13 @@ export function Dashboard() {
                 Open map
               </button>
             </div>
+          </div>
 
+          {/* Right Column */}
+          <div className="stack">
             {/* Today's Schedule */}
             <Card variant="pri">
-              <h3 className="ui-card-header">Today <span>{data.loaded ? list.header : ''}</span></h3>
+              <h3 className="ui-card-header">Today&apos;s timeline <span>{data.loaded ? list.header : ''}</span></h3>
               {data.loaded && list.rows.length === 0 && <p className="empty-hint">Nothing planned today.</p>}
               <div className="today-rows">
                 {list.rows.map((r) => (
@@ -348,10 +338,23 @@ export function Dashboard() {
                 ))}
               </div>
             </Card>
-          </div>
 
-          {/* Right Column */}
-          <div className="stack">
+            {/* Leave for … Card */}
+            {leaveCard && (
+              <Card variant="map" header={<>{leaveCard.heading} <Pill variant={leaveCard.pill.variant}>{leaveCard.pill.label}</Pill></>}>
+                <div className="file-item">
+                  <span className="icon-btn" style={{ background: 'var(--map-s)', color: 'var(--map)' }}>
+                    <Icon name="nav" />
+                  </span>
+                  <div style={{ flex: 1 }}>
+                    <b>{leaveCard.title}</b>
+                    <small style={{ color: 'var(--mu)' }}>{leaveCard.subtitle}</small>
+                  </div>
+                  <Button variant="map" size="sm" onClick={() => navigate(leaveCard.mapRoute)}>Route</Button>
+                </div>
+              </Card>
+            )}
+
             <Card variant="fit">
               <h3 className="ui-card-header">Exercise this week <span>min</span></h3>
               {chart && (
@@ -360,6 +363,7 @@ export function Dashboard() {
                 </div>
               )}
             </Card>
+
             <Card>
               <h3 className="ui-card-header">Sync <Pill variant={sync.pill.variant}>{sync.pill.label}</Pill></h3>
               <div className="file-item">
