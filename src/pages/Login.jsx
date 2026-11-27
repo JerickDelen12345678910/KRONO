@@ -2,9 +2,33 @@ import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
 import { useAuth } from '../contexts/AuthContext';
-import { ANDROID_APK_URL } from '../config/appLinks';
+import { ANDROID_APK_URL, GITHUB_RELEASES_URL } from '../config/appLinks';
 import { Button } from '../components/ui/Button';
 import { NoteBanner } from '../components/ui/NoteBanner';
+
+const MASCOT_PILLARS = [
+  {
+    key: 'schedule',
+    title: 'Smart Schedule',
+    desc: 'COR OCR & Background Alarms',
+    img: '/mascots/mascot_schedule.jpg',
+    accent: '#38bdf8',
+  },
+  {
+    key: 'fitness',
+    title: 'Fitness & Macros',
+    desc: 'Workouts & Rest Timers',
+    img: '/mascots/mascot_gym.jpg',
+    accent: '#22c55e',
+  },
+  {
+    key: 'map',
+    title: 'Live Route ETA',
+    desc: 'Saved Places & Directions',
+    img: '/mascots/mascot_map.jpg',
+    accent: '#f59e0b',
+  },
+];
 
 export function Login() {
   const { user, loading, online, signInWithGoogle } = useAuth();
@@ -29,46 +53,73 @@ export function Login() {
   };
 
   return (
-    <main className="login krono-fade-in">
-      <div className="login-card krono-login-card">
-        <div className="krono-login-badge">KRONO</div>
-        <div className="login-logo krono-logo-mark" aria-hidden="true">
-          <svg width="34" height="34" viewBox="0 0 36 36" fill="none">
-            <circle cx="18" cy="18" r="14" stroke="currentColor" strokeWidth="2.5" strokeDasharray="6 3" />
-            <path d="M13 11V25M13 18L22 11M16.5 15.5L23 25" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </div>
-        <h1>KRONO</h1>
-        <p className="login-sub">Schedule · Fitness · Navigation</p>
+    <main className="login krono-login-screen krono-fade-in">
+      {/* Ambient Background KRONO Icon Watermark */}
+      <div className="krono-login-bg-art" aria-hidden="true">
+        <div className="krono-login-glow krono-login-glow-1" />
+        <div className="krono-login-glow krono-login-glow-2" />
+        <img src="/favicon.svg" alt="" className="krono-login-watermark" />
+      </div>
 
-        <div className="krono-login-pillars">
-          <span>Class &amp; Task Timeline</span>
-          <span>Workout &amp; Macros</span>
-          <span>Live Route ETA</span>
+      <div className="login-card krono-login-card">
+        <div className="krono-login-header">
+          <div className="krono-login-logo-wrap">
+            <img src="/favicon.svg" alt="KRONO Logo" width="56" height="56" />
+          </div>
+          <div className="krono-login-badge">KRONO · ALL-IN-ONE</div>
+          <h1>KRONO</h1>
+          <p className="login-sub">Schedule · Fitness · Navigation</p>
+        </div>
+
+        {/* 3 Mascot Showcase Cards */}
+        <div className="krono-mascot-grid" aria-label="Core Features">
+          {MASCOT_PILLARS.map((item) => (
+            <div
+              key={item.key}
+              className="krono-mascot-card"
+              style={{ '--pillar-accent': item.accent }}
+            >
+              <div className="krono-mascot-avatar">
+                <img src={item.img} alt={item.title} loading="eager" />
+              </div>
+              <div className="krono-mascot-copy">
+                <strong>{item.title}</strong>
+                <span>{item.desc}</span>
+              </div>
+            </div>
+          ))}
         </div>
 
         {!online && <NoteBanner>Connect to the internet to sign in.</NoteBanner>}
         {error && <NoteBanner>{error}</NoteBanner>}
 
-        <Button fullWidth leftIcon="user" disabled={!online || busy} onClick={handleSignIn}>
-          {busy ? 'Opening Google…' : 'Continue with Google'}
-        </Button>
+        <div className="krono-login-cta">
+          <Button fullWidth leftIcon="user" disabled={!online || busy} onClick={handleSignIn}>
+            {busy ? 'Opening Google…' : 'Continue with Google'}
+          </Button>
 
-        {!isNative && (
-          <div className="mt-3 pt-2 border-top">
-            <a
-              href={ANDROID_APK_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn btn-secondary w-100"
-            >
-              Download KRONO for Android (Full App + Widget)
-            </a>
-            <small className="row-subtitle d-block mt-1 text-center">
-              Includes Home-Screen Widget, Native Alarm Sound &amp; Custom Icon
-            </small>
-          </div>
-        )}
+          {!isNative && (
+            <div className="krono-apk-box">
+              <a
+                href={ANDROID_APK_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="krono-apk-btn"
+              >
+                <span className="krono-apk-btn-title">Download KRONO for Android</span>
+                <span className="krono-apk-btn-sub">Latest APK · Home Widget &amp; Background Alarms</span>
+              </a>
+              <a
+                href={GITHUB_RELEASES_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="krono-release-fallback"
+              >
+                View all release notes on GitHub →
+              </a>
+            </div>
+          )}
+        </div>
       </div>
     </main>
   );

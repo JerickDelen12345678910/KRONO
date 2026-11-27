@@ -1060,3 +1060,269 @@ button, input, select, textarea {
     padding: 10px 6px;
   }
 }
+
+// --- Redesigned Responsive Login Screen with Background Icon & 3 Mascots ---
+.krono-login-screen {
+  position: relative;
+  min-height: 100dvh;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(20px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom));
+  overflow-x: hidden;
+  overflow-y: auto;
+  background: radial-gradient(circle at 50% 0%, #111c36 0%, #060b16 68%, #03060d 100%);
+}
+
+.krono-login-bg-art {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 0;
+}
+
+.krono-login-watermark {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: min(88vw, 540px);
+  height: min(88vw, 540px);
+  transform: translate(-50%, -50%) rotate(-8deg);
+  opacity: 0.08;
+  filter: drop-shadow(0 0 40px rgba(56, 189, 248, 0.35));
+  user-select: none;
+}
+
+.krono-login-glow {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.28;
+}
+
+.krono-login-glow-1 {
+  width: 280px;
+  height: 280px;
+  top: -60px;
+  left: -60px;
+  background: #38bdf8;
+}
+
+.krono-login-glow-2 {
+  width: 300px;
+  height: 300px;
+  bottom: -80px;
+  right: -60px;
+  background: #3b82f6;
+}
+
+.krono-login-card {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 480px;
+  background: rgba(15, 23, 42, 0.82) !important;
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid rgba(148, 163, 184, 0.18) !important;
+  border-radius: 26px !important;
+  padding: 26px 20px !important;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55) !important;
+  text-align: center;
+  color: #f8fafc;
+}
+
+.krono-login-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.krono-login-logo-wrap {
+  width: 64px;
+  height: 64px;
+  border-radius: 18px;
+  padding: 4px;
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.35), rgba(59, 130, 246, 0.15));
+  box-shadow: 0 10px 28px rgba(14, 165, 233, 0.25);
+  display: grid;
+  place-items: center;
+}
+
+.krono-login-logo-wrap img {
+  width: 100%;
+  height: 100%;
+  border-radius: 14px;
+  display: block;
+}
+
+.krono-login-card .krono-login-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.12);
+  border: 1px solid rgba(56, 189, 248, 0.28);
+}
+
+.krono-login-card h1 {
+  margin: 2px 0 0;
+  font-size: clamp(1.65rem, 5vw, 2.05rem);
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: #f8fafc;
+}
+
+.krono-login-card .login-sub {
+  margin: 0;
+  font-size: 13.5px;
+  color: #94a3b8;
+}
+
+// 3 Mascot Grid: Responsive across mobile, tablet, and desktop
+.krono-mascot-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.krono-mascot-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+  padding: 10px 8px;
+  border-radius: 16px;
+  background: rgba(30, 41, 59, 0.65);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.krono-mascot-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--pillar-accent, #38bdf8);
+}
+
+.krono-mascot-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 2px solid var(--pillar-accent, #38bdf8);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
+  flex-shrink: 0;
+}
+
+.krono-mascot-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.krono-mascot-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  width: 100%;
+}
+
+.krono-mascot-copy strong {
+  font-size: 12px;
+  font-weight: 700;
+  color: #f1f5f9;
+  line-height: 1.25;
+}
+
+.krono-mascot-copy span {
+  font-size: 10.5px;
+  color: #94a3b8;
+  line-height: 1.25;
+}
+
+@media (max-width: 390px) {
+  .krono-mascot-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .krono-mascot-card {
+    flex-direction: row;
+    text-align: left;
+    padding: 8px 12px;
+  }
+  .krono-mascot-avatar {
+    width: 48px;
+    height: 48px;
+  }
+}
+
+.krono-login-cta {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.krono-apk-box {
+  margin-top: 4px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(148, 163, 184, 0.16);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.krono-apk-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 14px;
+  text-decoration: none;
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.18), rgba(59, 130, 246, 0.22));
+  border: 1px solid rgba(56, 189, 248, 0.42);
+  color: #f8fafc;
+  transition: transform 0.18s ease, background 0.18s ease;
+}
+
+.krono-apk-btn:hover {
+  transform: translateY(-1px);
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.28), rgba(59, 130, 246, 0.32));
+  color: #ffffff;
+}
+
+.krono-apk-btn-title {
+  font-size: 14px;
+  font-weight: 800;
+  color: #38bdf8;
+}
+
+.krono-apk-btn-sub {
+  font-size: 11.5px;
+  color: #cbd5e1;
+  line-height: 1.35;
+}
+
+.krono-release-fallback {
+  font-size: 12px;
+  color: #94a3b8;
+  text-decoration: none;
+}
+
+.krono-release-fallback:hover {
+  color: #38bdf8;
+  text-decoration: underline;
+}
