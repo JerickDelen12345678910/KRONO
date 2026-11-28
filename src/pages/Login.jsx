@@ -36,15 +36,15 @@ export function Login() {
         <img src="/favicon.svg" alt="" className="krono-login-watermark" />
       </div>
 
-      {/* Boxless 3D Mascots: Gym top-center, Study mascots scattered on sides */}
+      {/* Full-body standing 3D mascots (hands & feet visible, no circles/boxes): Gym top-center, others on sides */}
       <div className="krono-scatter-stage" aria-hidden="true">
-        <div className="krono-3d-figure is-gym-top-center">
+        <div className="krono-full-mascot is-login-gym-top">
           <img src="/mascots/mascot_gym.jpg" alt="" />
         </div>
-        <div className="krono-3d-figure is-study-left">
+        <div className="krono-full-mascot is-login-study-left">
           <img src="/mascots/mascot_schedule.jpg" alt="" />
         </div>
-        <div className="krono-3d-figure is-study-right">
+        <div className="krono-full-mascot is-login-study-right">
           <img src="/mascots/mascot_map.jpg" alt="" />
         </div>
       </div>
@@ -91,10 +91,10 @@ export function Login() {
         </div>
       </div>
 
-      {/* Human-like walking mascot at the very bottom of Login */}
+      {/* Full-body human-like walking mascot (with hands & feet) at the very bottom of Login */}
       <div className="krono-bottom-walk-track" aria-hidden="true">
-        <div className="krono-3d-walker">
-          <img src="/mascots/mascot_schedule.jpg" alt="" />
+        <div className="krono-full-walker">
+          <img src="/mascots/mascot_map.jpg" alt="" />
         </div>
       </div>
     </main>

@@ -1,4 +1,4 @@
-@use "design-tokens" as *;
+﻿@use "design-tokens" as *;
 @use "components";
 
 *, *::before, *::after {
@@ -19,7 +19,7 @@ button, input, select, textarea {
 }
 
 // ============================================
-// KRONO UPGRADES — Animations, Wave Bottom Nav, Header, Login & Splash
+// KRONO UPGRADES â€” Animations, Wave Bottom Nav, Header, Login & Splash
 // ============================================
 
 @keyframes kronoFadeSlideUp {
@@ -1650,6 +1650,8 @@ button, input, select, textarea {
   letter-spacing: 0.14em !important;
   background: linear-gradient(135deg, #ffffff 10%, #7dd3fc 58%, #38bdf8 100%);
   -webkit-background-clip: text;
+  background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
   text-shadow: 0 10px 28px rgba(56, 189, 248, 0.25);
 }
@@ -1660,6 +1662,8 @@ button, input, select, textarea {
   letter-spacing: 0.03em !important;
   background: linear-gradient(135deg, #f8fafc 20%, #bae6fd 100%);
   -webkit-background-clip: text;
+  background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
@@ -1673,6 +1677,8 @@ button, input, select, textarea {
   font-family: 'Space Grotesk', 'Plus Jakarta Sans', system-ui, sans-serif !important;
   background: linear-gradient(135deg, #ffffff 15%, #7dd3fc 85%);
   -webkit-background-clip: text;
+  background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
@@ -1858,3 +1864,299 @@ button, input, select, textarea {
     height: 58px;
   }
 }
+
+
+// ============================================
+// FULL-BODY STANDING 3D MASCOTS (NO CIRCLE CROP, HANDS & FEET VISIBLE) & CENTERED TERMS
+// ============================================
+
+.krono-onboard-shell {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  max-width: 440px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 0 auto;
+}
+
+.krono-top-center-brand {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 6px;
+  font-family: 'Space Grotesk', 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: 0.22em;
+  color: #f8fafc;
+}
+
+.krono-standing-trio {
+  position: relative;
+  width: 100%;
+  height: 126px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 4px;
+  margin-bottom: -14px;
+  z-index: 4;
+  pointer-events: none;
+  perspective: 1000px;
+}
+
+// Full-body mascot: NO border-radius circle crop, uses mix-blend-mode: lighten so dark square bg disappears and hands + feet show fully
+.krono-full-mascot {
+  position: relative;
+  width: 118px;
+  height: 118px;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+  transform-style: preserve-3d;
+  filter: drop-shadow(0 14px 18px rgba(0, 0, 0, 0.7));
+}
+
+.krono-full-mascot img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain !important;
+  border-radius: 0 !important;
+  mix-blend-mode: lighten;
+  display: block;
+}
+
+.krono-full-mascot.is-left-study {
+  width: 112px;
+  height: 112px;
+  transform-origin: bottom center;
+  animation: kronoStandIdleLeft 3.6s ease-in-out infinite;
+}
+
+.krono-full-mascot.is-center-gym {
+  width: 128px;
+  height: 128px;
+  z-index: 2;
+  transform-origin: bottom center;
+  animation: kronoStandGymLift 3s ease-in-out infinite;
+}
+
+.krono-full-mascot.is-right-wave {
+  width: 114px;
+  height: 114px;
+  transform-origin: bottom center;
+  animation: kronoStandWaveGreet 2.2s ease-in-out infinite;
+}
+
+.krono-wave-hand {
+  position: absolute;
+  top: 12px;
+  right: 8px;
+  font-size: 20px;
+  line-height: 1;
+  transform-origin: 70% 70%;
+  animation: kronoHandWave 1s ease-in-out infinite;
+}
+
+@keyframes kronoStandIdleLeft {
+  0%, 100% {
+    transform: perspective(900px) rotateY(14deg) translateY(0px);
+  }
+  50% {
+    transform: perspective(900px) rotateY(6deg) translateY(-5px);
+  }
+}
+
+@keyframes kronoStandGymLift {
+  0%, 100% {
+    transform: perspective(900px) translateZ(18px) translateY(0px) scale(1);
+  }
+  50% {
+    transform: perspective(900px) translateZ(28px) translateY(-6px) scale(1.04);
+  }
+}
+
+@keyframes kronoStandWaveGreet {
+  0%, 100% {
+    transform: perspective(900px) rotateY(-14deg) rotateZ(-3deg) translateY(0px);
+  }
+  50% {
+    transform: perspective(900px) rotateY(-6deg) rotateZ(5deg) translateY(-5px);
+  }
+}
+
+// Centered top section of Terms & Agreement card
+.krono-onboard-card.krono-onboard-card-centered {
+  width: 100%;
+  text-align: center !important;
+  padding-top: 24px !important;
+}
+
+.krono-centered-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 6px;
+}
+
+.krono-centered-header h2,
+.krono-centered-header p {
+  text-align: center !important;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+// Login screen full-body standing mascots (hands & feet visible)
+.krono-full-mascot.is-login-gym-top {
+  position: absolute;
+  top: max(6px, env(safe-area-inset-top, 6px));
+  left: 50%;
+  width: 124px;
+  height: 124px;
+  transform-origin: bottom center;
+  animation: kronoLoginGymStand 3.2s ease-in-out infinite;
+}
+
+.krono-full-mascot.is-login-study-left {
+  position: absolute;
+  top: 12%;
+  left: 2%;
+  width: 108px;
+  height: 108px;
+  transform-origin: bottom center;
+  animation: kronoStandIdleLeft 3.8s ease-in-out infinite;
+}
+
+.krono-full-mascot.is-login-study-right {
+  position: absolute;
+  top: 14%;
+  right: 2%;
+  width: 108px;
+  height: 108px;
+  transform-origin: bottom center;
+  animation: kronoStandWaveGreet 3.5s ease-in-out infinite;
+}
+
+@keyframes kronoLoginGymStand {
+  0%, 100% {
+    transform: translateX(-50%) perspective(900px) translateZ(16px) translateY(0px);
+  }
+  50% {
+    transform: translateX(-50%) perspective(900px) translateZ(28px) translateY(-7px);
+  }
+}
+
+// Full-body walking mascot at the very bottom of Login (with hands & feet, no circle crop)
+.krono-bottom-walk-track {
+  height: 104px !important;
+}
+
+.krono-full-walker {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 96px;
+  height: 96px;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+  transform-style: preserve-3d;
+  filter: drop-shadow(0 12px 16px rgba(0, 0, 0, 0.75));
+  animation: kronoWalkFullAcross 9.5s linear infinite;
+}
+
+.krono-full-walker img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain !important;
+  border-radius: 0 !important;
+  mix-blend-mode: lighten;
+  display: block;
+  transform-origin: bottom center;
+  animation: kronoHumanWalkStepFull 0.54s ease-in-out infinite;
+}
+
+@keyframes kronoHumanWalkStepFull {
+  0% {
+    transform: translateY(0px) rotateZ(-5deg) rotateX(6deg) scaleY(0.97);
+  }
+  25% {
+    transform: translateY(-7px) rotateZ(2deg) rotateX(10deg) scaleY(1.03);
+  }
+  50% {
+    transform: translateY(0px) rotateZ(5deg) rotateX(6deg) scaleY(0.97);
+  }
+  75% {
+    transform: translateY(-7px) rotateZ(-2deg) rotateX(10deg) scaleY(1.03);
+  }
+  100% {
+    transform: translateY(0px) rotateZ(-5deg) rotateX(6deg) scaleY(0.97);
+  }
+}
+
+@keyframes kronoWalkFullAcross {
+  0% {
+    left: -96px;
+    transform: scaleX(1);
+  }
+  47% {
+    left: calc(100% - 96px);
+    transform: scaleX(1);
+  }
+  50% {
+    left: calc(100% - 96px);
+    transform: scaleX(-1);
+  }
+  97% {
+    left: 0px;
+    transform: scaleX(-1);
+  }
+  100% {
+    left: 0px;
+    transform: scaleX(1);
+  }
+}
+
+.krono-login-card.krono-login-card-clean {
+  margin-top: 96px !important;
+  margin-bottom: 84px !important;
+}
+
+@media (max-width: 520px) {
+  .krono-standing-trio {
+    height: 106px;
+  }
+  .krono-full-mascot.is-left-study,
+  .krono-full-mascot.is-right-wave {
+    width: 94px;
+    height: 94px;
+  }
+  .krono-full-mascot.is-center-gym {
+    width: 108px;
+    height: 108px;
+  }
+  .krono-full-mascot.is-login-gym-top {
+    width: 106px;
+    height: 106px;
+  }
+  .krono-full-mascot.is-login-study-left,
+  .krono-full-mascot.is-login-study-right {
+    width: 90px;
+    height: 90px;
+    top: 10%;
+  }
+  .krono-full-walker {
+    width: 84px;
+    height: 84px;
+  }
+}
+

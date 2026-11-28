@@ -1,4 +1,4 @@
-import { StrictMode, useEffect, useState } from 'react';
+﻿import { StrictMode, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
@@ -104,71 +104,80 @@ function FirstInstallReviewGate({ children }) {
         <img src="/favicon.svg" alt="" className="krono-login-watermark" />
       </div>
 
-      {/* 3D Mascots: Gym top-center, Study left, Greeting/Waving mascot on middle-right */}
-      <div className="krono-scatter-stage" aria-hidden="true">
-        <div className="krono-3d-figure is-gym-top-center">
-          <img src="/mascots/mascot_gym.jpg" alt="" />
+      {/* Centered top brand header + full-body standing mascots (hands & feet visible, no circle crop) */}
+      <div className="krono-onboard-shell krono-fade-in">
+        <div className="krono-top-center-brand">
+          <img src="/favicon.svg" alt="KRONO" width="38" height="38" />
+          <span>KRONO</span>
         </div>
-        <div className="krono-3d-figure is-study-left">
-          <img src="/mascots/mascot_schedule.jpg" alt="" />
-        </div>
-        <div className="krono-3d-figure is-greeting-wave-mid">
-          <img src="/mascots/mascot_map.jpg" alt="" />
-          <span className="krono-wave-badge">👋</span>
-        </div>
-      </div>
 
-      <div className="krono-onboard-card krono-login-card krono-fade-in">
-        <span className="krono-login-badge">WELCOME TO KRONO</span>
-        <h2 className="krono-styled-heading">Everything in Sync</h2>
-        <p className="krono-onboard-lead">
-          Review what KRONO includes and the device permissions it uses to keep your day on track:
-        </p>
-
-        <div className="krono-onboard-list">
-          <div className="krono-onboard-item">
-            <span className="krono-onboard-dot" />
-            <div>
-              <b>Schedules, COR &amp; Alarms</b>
-              <small>Uses Notifications &amp; Exact Alarms to alert you before classes and tasks.</small>
-            </div>
-            <span className="krono-pillar-tag">CHRONO</span>
+        <div className="krono-standing-trio" aria-hidden="true">
+          <div className="krono-full-mascot is-left-study">
+            <img src="/mascots/mascot_schedule.jpg" alt="" />
           </div>
-          <div className="krono-onboard-item">
-            <span className="krono-onboard-dot" />
-            <div>
-              <b>Fitness &amp; Program Scanner</b>
-              <small>Reads uploaded COR/workout PDFs and images locally to build your routines.</small>
-            </div>
-            <span className="krono-pillar-tag">TITAN</span>
+          <div className="krono-full-mascot is-center-gym">
+            <img src="/mascots/mascot_gym.jpg" alt="" />
           </div>
-          <div className="krono-onboard-item">
-            <span className="krono-onboard-dot" />
-            <div>
-              <b>Live Route &amp; Leave-By Radar</b>
-              <small>Uses Location (only while navigating) to estimate travel time and departure alerts.</small>
-            </div>
-            <span className="krono-pillar-tag">ATLAS</span>
+          <div className="krono-full-mascot is-right-wave">
+            <img src="/mascots/mascot_map.jpg" alt="" />
+            <span className="krono-wave-hand">👋</span>
           </div>
         </div>
 
-        <label className="krono-terms-check">
-          <input
-            type="checkbox"
-            checked={agreed}
-            onChange={(e) => setAgreed(e.target.checked)}
-          />
-          <span>I agree to the Terms &amp; Agreement</span>
-        </label>
+        <div className="krono-onboard-card krono-login-card krono-onboard-card-centered">
+          <div className="krono-centered-header">
+            <span className="krono-login-badge">WELCOME TO KRONO</span>
+            <h2 className="krono-styled-heading">Everything in Sync</h2>
+            <p className="krono-onboard-lead">
+              Review what KRONO includes and the device permissions it uses to keep your day on track:
+            </p>
+          </div>
 
-        <button
-          type="button"
-          className="btn btn-full"
-          disabled={!agreed}
-          onClick={handleContinue}
-        >
-          Accept &amp; Continue to Sign In
-        </button>
+          <div className="krono-onboard-list">
+            <div className="krono-onboard-item">
+              <span className="krono-onboard-dot" />
+              <div>
+                <b>Schedules, COR &amp; Alarms</b>
+                <small>Uses Notifications &amp; Exact Alarms to alert you before classes and tasks.</small>
+              </div>
+              <span className="krono-pillar-tag">CHRONO</span>
+            </div>
+            <div className="krono-onboard-item">
+              <span className="krono-onboard-dot" />
+              <div>
+                <b>Fitness &amp; Program Scanner</b>
+                <small>Reads uploaded COR/workout PDFs and images locally to build your routines.</small>
+              </div>
+              <span className="krono-pillar-tag">TITAN</span>
+            </div>
+            <div className="krono-onboard-item">
+              <span className="krono-onboard-dot" />
+              <div>
+                <b>Live Route &amp; Leave-By Radar</b>
+                <small>Uses Location (only while navigating) to estimate travel time and departure alerts.</small>
+              </div>
+              <span className="krono-pillar-tag">ATLAS</span>
+            </div>
+          </div>
+
+          <label className="krono-terms-check">
+            <input
+              type="checkbox"
+              checked={agreed}
+              onChange={(e) => setAgreed(e.target.checked)}
+            />
+            <span>I agree to the Terms &amp; Agreement</span>
+          </label>
+
+          <button
+            type="button"
+            className="btn btn-full"
+            disabled={!agreed}
+            onClick={handleContinue}
+          >
+            Accept &amp; Continue to Sign In
+          </button>
+        </div>
       </div>
     </div>
   );
