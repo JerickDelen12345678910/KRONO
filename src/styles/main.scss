@@ -2160,3 +2160,210 @@ button, input, select, textarea {
   }
 }
 
+
+// ============================================
+// TRUE 3D ARTICULATED MASCOT RIGS (ZERO EDGE SHADING, HUMAN-LIKE LIMB MOTION)
+// ============================================
+
+.krono-true-3d-rig {
+  display: inline-block;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  filter: none !important;
+  overflow: visible !important;
+}
+
+.krono-true-3d-rig svg {
+  overflow: visible !important;
+}
+
+.krono-true-3d-rig .rig-torso,
+.krono-true-3d-rig .rig-arm-left,
+.krono-true-3d-rig .rig-arm-right,
+.krono-true-3d-rig .rig-leg-left,
+.krono-true-3d-rig .rig-leg-right,
+.krono-true-3d-rig .rig-wave-fingers {
+  transform-box: fill-box;
+}
+
+// Idle breathing + subtle head tilt
+.krono-true-3d-rig.is-action-idle .rig-torso {
+  transform-origin: center bottom;
+  animation: rigIdleTorso 2.6s ease-in-out infinite;
+}
+
+// Titan dumbbell press lift
+.krono-true-3d-rig.is-action-lift .rig-torso {
+  transform-origin: center bottom;
+  animation: rigLiftTorso 1.8s ease-in-out infinite;
+}
+
+.krono-true-3d-rig.is-action-lift .rig-arm-left {
+  transform-origin: 56px 102px;
+  animation: rigLiftArmLeft 1.8s ease-in-out infinite;
+}
+
+.krono-true-3d-rig.is-action-lift .rig-arm-right {
+  transform-origin: 144px 102px;
+  animation: rigLiftArmRight 1.8s ease-in-out infinite;
+}
+
+// Greeting / Waving hand animation
+.krono-true-3d-rig.is-action-wave .rig-torso {
+  transform-origin: center bottom;
+  animation: rigWaveTorso 2s ease-in-out infinite;
+}
+
+.krono-true-3d-rig.is-action-wave .rig-arm-right {
+  transform-origin: 144px 102px;
+  animation: rigWaveArm 0.9s ease-in-out infinite;
+}
+
+.krono-true-3d-rig.is-action-wave .rig-wave-fingers {
+  transform-origin: center bottom;
+  animation: rigWaveHand 0.6s ease-in-out infinite;
+}
+
+// Literal Human-Like Walking Cycle (alternating legs, swinging arms, torso bounce)
+.krono-true-3d-rig.is-action-walk .rig-torso {
+  transform-origin: center bottom;
+  animation: rigWalkTorso 0.64s ease-in-out infinite;
+}
+
+.krono-true-3d-rig.is-action-walk .rig-leg-left {
+  transform-origin: 83px 152px;
+  animation: rigWalkLegLeft 0.64s ease-in-out infinite;
+}
+
+.krono-true-3d-rig.is-action-walk .rig-leg-right {
+  transform-origin: 117px 152px;
+  animation: rigWalkLegRight 0.64s ease-in-out infinite;
+}
+
+.krono-true-3d-rig.is-action-walk .rig-arm-left {
+  transform-origin: 56px 102px;
+  animation: rigWalkArmLeft 0.64s ease-in-out infinite;
+}
+
+.krono-true-3d-rig.is-action-walk .rig-arm-right {
+  transform-origin: 144px 102px;
+  animation: rigWalkArmRight 0.64s ease-in-out infinite;
+}
+
+.krono-true-3d-rig.is-action-walk .rig-floor-shadow {
+  transform-origin: center;
+  animation: rigShadowPulse 0.64s ease-in-out infinite;
+}
+
+@keyframes rigIdleTorso {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-4px) rotate(-2deg); }
+}
+
+@keyframes rigLiftTorso {
+  0%, 100% { transform: translateY(0px) scaleY(1); }
+  50% { transform: translateY(-4px) scaleY(1.03); }
+}
+
+@keyframes rigLiftArmLeft {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(-16deg) translateY(-4px); }
+}
+
+@keyframes rigLiftArmRight {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(16deg) translateY(-4px); }
+}
+
+@keyframes rigWaveTorso {
+  0%, 100% { transform: rotate(-2deg); }
+  50% { transform: rotate(3deg); }
+}
+
+@keyframes rigWaveArm {
+  0%, 100% { transform: rotate(-10deg); }
+  50% { transform: rotate(16deg); }
+}
+
+@keyframes rigWaveHand {
+  0%, 100% { transform: rotate(-14deg); }
+  50% { transform: rotate(18deg); }
+}
+
+@keyframes rigWalkTorso {
+  0%, 50%, 100% { transform: translateY(0px) rotate(2deg); }
+  25%, 75% { transform: translateY(-6px) rotate(-2deg); }
+}
+
+@keyframes rigWalkLegLeft {
+  0% { transform: rotate(-28deg); }
+  50% { transform: rotate(28deg); }
+  100% { transform: rotate(-28deg); }
+}
+
+@keyframes rigWalkLegRight {
+  0% { transform: rotate(28deg); }
+  50% { transform: rotate(-28deg); }
+  100% { transform: rotate(28deg); }
+}
+
+@keyframes rigWalkArmLeft {
+  0% { transform: rotate(24deg); }
+  50% { transform: rotate(-24deg); }
+  100% { transform: rotate(24deg); }
+}
+
+@keyframes rigWalkArmRight {
+  0% { transform: rotate(-24deg); }
+  50% { transform: rotate(24deg); }
+  100% { transform: rotate(-24deg); }
+}
+
+@keyframes rigShadowPulse {
+  0%, 50%, 100% { transform: scaleX(1); opacity: 0.45; }
+  25%, 75% { transform: scaleX(0.84); opacity: 0.3; }
+}
+
+// Login positioning for pure 3D mascots
+.krono-login-pos-top {
+  position: absolute;
+  top: max(6px, env(safe-area-inset-top, 6px));
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.krono-login-pos-left {
+  position: absolute;
+  top: 12%;
+  left: 3%;
+}
+
+.krono-login-pos-right {
+  position: absolute;
+  top: 13%;
+  right: 3%;
+}
+
+.krono-articulated-walker {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  animation: kronoWalkFullAcross 9.5s linear infinite;
+}
+
+@media (max-width: 520px) {
+  .krono-login-pos-top .krono-true-3d-rig {
+    width: 96px !important;
+    height: 96px !important;
+  }
+  .krono-login-pos-left .krono-true-3d-rig,
+  .krono-login-pos-right .krono-true-3d-rig {
+    width: 82px !important;
+    height: 82px !important;
+  }
+  .krono-articulated-walker .krono-true-3d-rig {
+    width: 82px !important;
+    height: 82px !important;
+  }
+}

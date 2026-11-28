@@ -5,6 +5,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ServicesProvider } from './contexts/ServicesProvider';
 import { AppRoutes } from './routes/AppRoutes';
 import { UpdateBanner } from './components/ui/UpdateBanner';
+import { Krono3DMascot } from './components/ui/Krono3DMascot';
 import { startPwa } from './pwa/index.js';
 import { stopAlarmAudio, subscribeActiveAlarm } from './reminders/alarmAudio.js';
 import 'bootstrap/dist/css/bootstrap.min.css';
@@ -104,24 +105,17 @@ function FirstInstallReviewGate({ children }) {
         <img src="/favicon.svg" alt="" className="krono-login-watermark" />
       </div>
 
-      {/* Centered top brand header + full-body standing mascots (hands & feet visible, no circle crop) */}
       <div className="krono-onboard-shell krono-fade-in">
         <div className="krono-top-center-brand">
           <img src="/favicon.svg" alt="KRONO" width="38" height="38" />
           <span>KRONO</span>
         </div>
 
+        {/* Pure 3D Mascots: Titan lifting top-center, Chrono & waving Atlas greeting on sides */}
         <div className="krono-standing-trio" aria-hidden="true">
-          <div className="krono-full-mascot is-left-study">
-            <img src="/mascots/mascot_schedule.jpg" alt="" />
-          </div>
-          <div className="krono-full-mascot is-center-gym">
-            <img src="/mascots/mascot_gym.jpg" alt="" />
-          </div>
-          <div className="krono-full-mascot is-right-wave">
-            <img src="/mascots/mascot_map.jpg" alt="" />
-            <span className="krono-wave-hand">👋</span>
-          </div>
+          <Krono3DMascot variant="chrono" action="idle" size={106} />
+          <Krono3DMascot variant="titan" action="lift" size={118} />
+          <Krono3DMascot variant="atlas" action="wave" size={108} />
         </div>
 
         <div className="krono-onboard-card krono-login-card krono-onboard-card-centered">

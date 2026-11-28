@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { ANDROID_APK_URL, GITHUB_RELEASES_URL } from '../config/appLinks';
 import { Button } from '../components/ui/Button';
 import { NoteBanner } from '../components/ui/NoteBanner';
+import { Krono3DMascot } from '../components/ui/Krono3DMascot';
 
 export function Login() {
   const { user, loading, online, signInWithGoogle } = useAuth();
@@ -36,16 +37,16 @@ export function Login() {
         <img src="/favicon.svg" alt="" className="krono-login-watermark" />
       </div>
 
-      {/* Full-body standing 3D mascots (hands & feet visible, no circles/boxes): Gym top-center, others on sides */}
+      {/* Pure 3D Mascots with zero edge shading: Titan top-center, Chrono & Atlas on sides */}
       <div className="krono-scatter-stage" aria-hidden="true">
-        <div className="krono-full-mascot is-login-gym-top">
-          <img src="/mascots/mascot_gym.jpg" alt="" />
+        <div className="krono-login-pos-top">
+          <Krono3DMascot variant="titan" action="lift" size={114} />
         </div>
-        <div className="krono-full-mascot is-login-study-left">
-          <img src="/mascots/mascot_schedule.jpg" alt="" />
+        <div className="krono-login-pos-left">
+          <Krono3DMascot variant="chrono" action="idle" size={102} />
         </div>
-        <div className="krono-full-mascot is-login-study-right">
-          <img src="/mascots/mascot_map.jpg" alt="" />
+        <div className="krono-login-pos-right">
+          <Krono3DMascot variant="atlas" action="wave" size={104} />
         </div>
       </div>
 
@@ -91,10 +92,10 @@ export function Login() {
         </div>
       </div>
 
-      {/* Full-body human-like walking mascot (with hands & feet) at the very bottom of Login */}
+      {/* True 3D Human-Like Walking Mascot (articulated swinging arms + alternating legs & feet) at bottom */}
       <div className="krono-bottom-walk-track" aria-hidden="true">
-        <div className="krono-full-walker">
-          <img src="/mascots/mascot_map.jpg" alt="" />
+        <div className="krono-articulated-walker">
+          <Krono3DMascot variant="atlas" action="walk" size={96} />
         </div>
       </div>
     </main>
