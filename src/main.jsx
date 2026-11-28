@@ -104,22 +104,23 @@ function FirstInstallReviewGate({ children }) {
         <img src="/favicon.svg" alt="" className="krono-login-watermark" />
       </div>
 
-      {/* Scattered 3D Mascots: Titan top-center, Chrono & Atlas on sides */}
+      {/* 3D Mascots: Gym top-center, Study left, Greeting/Waving mascot on middle-right */}
       <div className="krono-scatter-stage" aria-hidden="true">
-        <div className="krono-scatter-mascot is-gym-top-center">
+        <div className="krono-3d-figure is-gym-top-center">
           <img src="/mascots/mascot_gym.jpg" alt="" />
         </div>
-        <div className="krono-scatter-mascot is-study-left">
+        <div className="krono-3d-figure is-study-left">
           <img src="/mascots/mascot_schedule.jpg" alt="" />
         </div>
-        <div className="krono-scatter-mascot is-study-right">
+        <div className="krono-3d-figure is-greeting-wave-mid">
           <img src="/mascots/mascot_map.jpg" alt="" />
+          <span className="krono-wave-badge">👋</span>
         </div>
       </div>
 
       <div className="krono-onboard-card krono-login-card krono-fade-in">
         <span className="krono-login-badge">WELCOME TO KRONO</span>
-        <h2>Everything in Sync</h2>
+        <h2 className="krono-styled-heading">Everything in Sync</h2>
         <p className="krono-onboard-lead">
           Review what KRONO includes and the device permissions it uses to keep your day on track:
         </p>
