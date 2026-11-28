@@ -15,30 +15,6 @@ startPwa();
 
 const ONBOARDING_KEY = 'krono_onboarding_accepted_v1';
 
-const MASCOTS = [
-  {
-    id: 'schedule',
-    name: 'Chrono',
-    role: 'Smart Timeline & Alarms',
-    src: '/mascots/mascot_schedule.jpg',
-    accent: '#38BDF8',
-  },
-  {
-    id: 'gym',
-    name: 'Titan',
-    role: 'Workouts & Macro Coach',
-    src: '/mascots/mascot_gym.jpg',
-    accent: '#38BDF8',
-  },
-  {
-    id: 'map',
-    name: 'Atlas',
-    role: 'Live Route & ETA Radar',
-    src: '/mascots/mascot_map.jpg',
-    accent: '#38BDF8',
-  },
-];
-
 const BOOT_STEPS = [
   { label: 'Syncing your schedule...', pct: 28 },
   { label: 'Warming up workouts...', pct: 55 },
