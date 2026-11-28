@@ -1,7 +1,8 @@
-import { addDays } from '../models/common.js';
+﻿import { addDays } from '../models/common.js';
 import { validateSchedule } from '../models/schedule.js';
 import { draftToInput, emptyDraft, setRepeatType } from './scheduleForm.js';
 import { to12h } from './timeline.js';
+import { normalizeAlarmSound } from '../reminders/alarmAudio.js';
 
 export const COR_STEPS = ['Upload', 'Review', 'Create'];
 export const COR_CATEGORY = 'School';
@@ -14,7 +15,7 @@ const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 export const SAMPLE_COR = { fileName: 'COR_2026_1st_Sem.pdf', fileSize: 1258291, period: '1st Sem, AY 2026–2027' };
 
 const row = (n, code, name, days, startTime, endTime, room, professor, confidence = 0.95, reviewNote = '') => (
-  { id: `cor-sample-${n}`, code, name, days, startTime, endTime, room, professor, confidence, reviewNote }
+  { id: `cor-sample-${n}`, code, name, days, startTime, endTime, room, professor, confidence, reviewNote, alarmSound: 'chrono_chime' }
 );
 
 export const sampleSubjects = () => [
@@ -36,7 +37,6 @@ export function reviewSummary(subjects) {
 
 export const daysLabel = (days) => [...days].sort((a, b) => a - b).map((d) => DAY_NAMES[d]).filter(Boolean).join(', ');
 export const timeRange = (s) => `${to12h(s.startTime)}–${to12h(s.endTime)}`;
-// Full subject title is shown in the app schedule; course code is stored separately for the home-screen widget
 export const subjectTitle = (s) => (s.name && s.name.trim()) || (s.code && s.code.trim()) || 'Class';
 export const detailLine = (s) => [s.code, s.room, s.professor ? `Prof. ${s.professor}` : ''].filter(Boolean).join(' · ');
 export const createLabel = (n) => `Create ${n} ${n === 1 ? 'schedule' : 'schedules'}`;
@@ -65,14 +65,19 @@ export function subjectToInput(subject, range) {
     subject.professor ? `Prof. ${subject.professor}` : '',
   ].filter(Boolean);
 
+  const baseDraft = emptyDraft({ date: range.startDate });
   let draft = {
-    ...emptyDraft({ date: range.startDate }),
+    ...baseDraft,
     title: subjectTitle(subject),
     category: COR_CATEGORY,
     description: descParts.join(' · '),
     location: subject.room ?? '',
     startTime: subject.startTime,
     endTime: subject.endTime,
+    reminder: {
+      ...baseDraft.reminder,
+      sound: normalizeAlarmSound(subject.alarmSound || 'chrono_chime'),
+    },
   };
   draft = setRepeatType(draft, 'selectedDays');
   draft = {

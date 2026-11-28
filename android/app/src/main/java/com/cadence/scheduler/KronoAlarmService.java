@@ -46,10 +46,11 @@ public class KronoAlarmService extends Service {
         String alarmId = intent != null ? intent.getStringExtra(KronoAlarmReceiver.EXTRA_ALARM_ID) : "krono-alarm";
         String title = intent != null ? intent.getStringExtra(KronoAlarmReceiver.EXTRA_TITLE) : "KRONO Alarm";
         String body = intent != null ? intent.getStringExtra(KronoAlarmReceiver.EXTRA_BODY) : "Scheduled reminder is ringing";
-        String sound = intent != null ? intent.getStringExtra(KronoAlarmReceiver.EXTRA_SOUND) : "default";
+        String sound = intent != null ? intent.getStringExtra(KronoAlarmReceiver.EXTRA_SOUND) : "chrono_chime";
 
         if (title == null || title.isEmpty()) title = "KRONO Alarm";
         if (body == null || body.isEmpty()) body = "Scheduled reminder is ringing";
+        if (sound == null || sound.isEmpty()) sound = "chrono_chime";
 
         ensureNotificationChannel();
         Notification notification = buildAlarmNotification(alarmId, title, body, sound);
@@ -60,9 +61,8 @@ public class KronoAlarmService extends Service {
             startForeground(NOTIFICATION_ID, notification);
         }
 
-        startAlarmAudioAndVibration();
+        startAlarmAudioAndVibration(sound);
 
-        // Safety auto-stop after 60 seconds if unanswered
         autoStopHandler.removeCallbacks(autoStopRunnable);
         autoStopHandler.postDelayed(autoStopRunnable, 60_000L);
 
@@ -79,7 +79,7 @@ public class KronoAlarmService extends Service {
                     NotificationManager.IMPORTANCE_HIGH
             );
             channel.setDescription("Ringing alarms with instant stop and snooze controls");
-            channel.setSound(null, null); // Sound is handled directly by MediaPlayer on USAGE_ALARM
+            channel.setSound(null, null);
             channel.enableVibration(false);
             channel.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
             nm.createNotificationChannel(channel);
@@ -92,12 +92,10 @@ public class KronoAlarmService extends Service {
             piFlags |= PendingIntent.FLAG_IMMUTABLE;
         }
 
-        // 1. Stop Alarm Broadcast PendingIntent (does NOT open the app)
         Intent stopIntent = new Intent(this, KronoAlarmReceiver.class);
         stopIntent.setAction(KronoAlarmReceiver.ACTION_STOP_ALARM);
         PendingIntent stopPi = PendingIntent.getBroadcast(this, 7001, stopIntent, piFlags);
 
-        // 2. Snooze 5 min Broadcast PendingIntent (does NOT open the app)
         Intent snoozeIntent = new Intent(this, KronoAlarmReceiver.class);
         snoozeIntent.setAction(KronoAlarmReceiver.ACTION_SNOOZE_ALARM);
         snoozeIntent.putExtra(KronoAlarmReceiver.EXTRA_ALARM_ID, alarmId);
@@ -106,10 +104,8 @@ public class KronoAlarmService extends Service {
         snoozeIntent.putExtra(KronoAlarmReceiver.EXTRA_SOUND, sound);
         PendingIntent snoozePi = PendingIntent.getBroadcast(this, 7002, snoozeIntent, piFlags);
 
-        // 3. Swipe/Erase Notification DeleteIntent -> Stops alarm immediately when swiped away!
         PendingIntent deletePi = PendingIntent.getBroadcast(this, 7003, stopIntent, piFlags);
 
-        // 4. Tapping the notification body opens the app (and stops ringing)
         Intent openIntent = new Intent(this, MainActivity.class);
         openIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
         openIntent.putExtra("stop_alarm_on_open", true);
@@ -122,7 +118,7 @@ public class KronoAlarmService extends Service {
                 .setCategory(NotificationCompat.CATEGORY_ALARM)
                 .setPriority(NotificationCompat.PRIORITY_MAX)
                 .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-                .setOngoing(false) // Allows swiping/erasing the notification to immediately silence the alarm
+                .setOngoing(false)
                 .setAutoCancel(true)
                 .setContentIntent(openPi)
                 .setDeleteIntent(deletePi)
@@ -131,10 +127,28 @@ public class KronoAlarmService extends Service {
                 .build();
     }
 
-    private void startAlarmAudioAndVibration() {
+    private Uri resolvePresetAlarmUri(String soundKey) {
+        String key = soundKey == null ? "chrono_chime" : soundKey.trim().toLowerCase();
+        if ("default".equals(key) || "custom".equals(key)) key = "chrono_chime";
+        else if ("gentle".equals(key)) key = "zen_marimba";
+        else if ("bright".equals(key)) key = "titan_pulse";
+
+        int rawResId = getResources().getIdentifier(key, "raw", getPackageName());
+        if (rawResId == 0) {
+            rawResId = getResources().getIdentifier("chrono_chime", "raw", getPackageName());
+        }
+        if (rawResId != 0) {
+            return Uri.parse("android.resource://" + getPackageName() + "/" + rawResId);
+        }
+
+        Uri fallback = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
+        if (fallback == null) fallback = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
+        return fallback;
+    }
+
+    private void startAlarmAudioAndVibration(String soundKey) {
         stopAlarmAudioAndVibration();
 
-        // Request transient audio focus so TikTok / Facebook / Spotify ducks or pauses while alarm rings
         audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
         AudioAttributes alarmAttrs = new AudioAttributes.Builder()
                 .setUsage(AudioAttributes.USAGE_ALARM)
@@ -149,9 +163,7 @@ public class KronoAlarmService extends Service {
             audioManager.requestAudioFocus(focusRequest);
         }
 
-        Uri alarmUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
-        if (alarmUri == null) alarmUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
-        if (alarmUri == null) alarmUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE);
+        Uri alarmUri = resolvePresetAlarmUri(soundKey);
 
         try {
             mediaPlayer = new MediaPlayer();

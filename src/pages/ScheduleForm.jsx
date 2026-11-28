@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useServices } from '../hooks/useServices';
 import { CATEGORIES, REMINDER_OFFSETS } from '../models/constants.js';
@@ -7,6 +7,7 @@ import { draftFromSchedule, draftToInput, emptyDraft, focusDate, setRepeatType, 
 import { defaultReminder } from '../lib/reminders.js';
 import { conflictMessage, conflictRange, findConflicts } from '../lib/conflicts.js';
 import { ERROR_CODE, handleError, isAppError } from '../lib/errors';
+import { ALARM_SOUND_OPTIONS, normalizeAlarmSound, previewAlarmSound } from '../reminders/alarmAudio.js';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { FilterChips } from '../components/ui/FilterChips';
@@ -126,6 +127,7 @@ export function ScheduleForm() {
   const weekly = draft.repeat.type === 'weekly' || draft.repeat.type === 'selectedDays';
   const offsets = REMINDER_OFFSETS.includes(Number(draft.reminder.offsetMinutes)) ? REMINDER_OFFSETS : [...REMINDER_OFFSETS, Number(draft.reminder.offsetMinutes)].sort((a, b) => a - b);
   const showDestinationPicker = draft.category === 'Travel' || Boolean(draft.destinationId);
+  const activeSound = normalizeAlarmSound(draft.reminder.sound);
 
   return (
     <form className="stack krono-fade-in" onSubmit={save} noValidate>
@@ -232,6 +234,27 @@ export function ScheduleForm() {
                     {offsets.map((m) => <option key={m} value={m}>{offsetLabel(m)}</option>)}
                   </select>
                 </FormField>
+                {draft.reminder.useAlarm && (
+                  <FormField as="div" label="Alarm sound">
+                    <div className="d-flex gap-2 align-items-center">
+                      <select
+                        value={activeSound}
+                        onChange={(e) => {
+                          const next = normalizeAlarmSound(e.target.value);
+                          setReminder('sound', next);
+                          previewAlarmSound(next);
+                        }}
+                      >
+                        {ALARM_SOUND_OPTIONS.map((opt) => (
+                          <option key={opt.id} value={opt.id}>{opt.label}</option>
+                        ))}
+                      </select>
+                      <Button type="button" variant="secondary" onClick={() => previewAlarmSound(activeSound)}>
+                        Test
+                      </Button>
+                    </div>
+                  </FormField>
+                )}
               </>
             )}
           </Card>

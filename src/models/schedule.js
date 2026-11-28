@@ -1,17 +1,13 @@
-import {
+﻿import {
   CATEGORIES, CATEGORY_COLOR, OCCURRENCE_STATUS, PRIORITY, REPEAT_TYPE, SCHEDULE_COLORS,
 } from './constants.js';
 import { createBase, isDate, isInt, isNonEmpty, isTime, result } from './common.js';
 
 export const createRepeatRule = (o = {}) => ({
-  type: REPEAT_TYPE.NONE, interval: 1, daysOfWeek: [], startDate: null, endDate: null, ...o, // daysOfWeek: 0=Sun..6=Sat
+  type: REPEAT_TYPE.NONE, interval: 1, daysOfWeek: [], startDate: null, endDate: null, ...o,
 });
-export const createReminder = (o = {}) => ({ enabled: true, offsetMinutes: 15, useAlarm: true, ...o });
+export const createReminder = (o = {}) => ({ enabled: true, offsetMinutes: 15, useAlarm: true, sound: 'chrono_chime', ...o });
 
-/**
- * Schedule DEFINITION. One-time items use `date`; repeating items use repeat.startDate/endDate.
- * Dated occurrences (completion/history) live in createOccurrence.
- */
 export function createSchedule(o = {}) {
   const category = o.category ?? 'Personal';
   return {
@@ -22,7 +18,6 @@ export function createSchedule(o = {}) {
   };
 }
 
-/** One dated instance of a schedule. The id is deterministic, so a retried create can never duplicate it. */
 export function createOccurrence(schedule, date, o = {}) {
   return {
     ...createBase(), id: `${schedule.id}_${date}`, scheduleId: schedule.id, date,

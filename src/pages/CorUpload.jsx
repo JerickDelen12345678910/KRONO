@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+﻿import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useServices } from '../hooks/useServices';
 import { toLocalDate } from '../models/common.js';
@@ -10,6 +10,7 @@ import {
 } from '../lib/cor.js';
 import { extractCorText, CorOcrError } from '../lib/corOcr.js';
 import { parseCorText } from '../lib/corParser.js';
+import { ALARM_SOUND_OPTIONS, normalizeAlarmSound, previewAlarmSound } from '../reminders/alarmAudio.js';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { Icon } from '../components/ui/Icon';
@@ -19,9 +20,11 @@ import { Stepper } from '../components/ui/Stepper';
 
 export function CorUpload() {
   const navigate = useNavigate();
-  const { schedule } = useServices();
+  const { schedule, reminders } = useServices();
   const fileInput = useRef(null);
   const requestId = useRef(0);
+  const defaultSound = normalizeAlarmSound(reminders.getSettings()?.sound || 'chrono_chime');
+
   const [today] = useState(() => toLocalDate());
   const [step, setStep] = useState(0);
   const [file, setFile] = useState(null);
@@ -31,6 +34,7 @@ export function CorUpload() {
   const [source, setSource] = useState(null);
   const [period, setPeriod] = useState(null);
   const [picked, setPicked] = useState([]);
+  const [bulkSound, setBulkSound] = useState(defaultSound);
   const [ocrBusy, setOcrBusy] = useState(false);
   const [ocrError, setOcrError] = useState('');
   const [created, setCreated] = useState([]);
@@ -54,6 +58,19 @@ export function CorUpload() {
     setFocus(null);
   };
 
+  const applySoundToAll = (nextSound) => {
+    const resolved = normalizeAlarmSound(nextSound);
+    setBulkSound(resolved);
+    setSubjects((prev) => prev.map((s) => ({ ...s, alarmSound: resolved })));
+    previewAlarmSound(resolved);
+  };
+
+  const setSubjectSound = (subjectId, nextSound) => {
+    const resolved = normalizeAlarmSound(nextSound);
+    setSubjects((prev) => prev.map((s) => (s.id === subjectId ? { ...s, alarmSound: resolved } : s)));
+    previewAlarmSound(resolved);
+  };
+
   const runOcr = async (sourceFile) => {
     const id = ++requestId.current;
     setOcrBusy(true);
@@ -68,8 +85,9 @@ export function CorUpload() {
         setUnparsedRows(result.unparsedRows);
         return;
       }
-      setSubjects(result.subjects);
-      setPicked(initialSelection(result.subjects));
+      const withSound = result.subjects.map((s) => ({ ...s, alarmSound: bulkSound }));
+      setSubjects(withSound);
+      setPicked(initialSelection(withSound));
       setUnparsedRows(result.unparsedRows);
       setPeriod(result.period);
       setSource('ocr');
@@ -103,7 +121,7 @@ export function CorUpload() {
     setOcrBusy(false);
     setFile({ name: SAMPLE_COR.fileName, size: SAMPLE_COR.fileSize });
     resetResults();
-    const subs = sampleSubjects();
+    const subs = sampleSubjects().map((s) => ({ ...s, alarmSound: bulkSound }));
     setSubjects(subs);
     setPicked(initialSelection(subs));
     setSource('sample');
@@ -170,24 +188,57 @@ export function CorUpload() {
 
   const reviewCard = (
     <Card variant="pri" header={<>Extracted classes{periodLabel && <span>{` ${periodLabel}`}</span>}</>}>
-      <div className="chips">
+      <div className="chips mb-2">
         <Pill variant="ok">{`${summary.ready} ready`}</Pill>
         {summary.needsReview > 0 && <Pill variant="warn">{`${summary.needsReview} review`}</Pill>}
       </div>
+
+      {/* Bulk COR Alarm Sound Selector */}
+      <div className="form-field mb-3">
+        <small className="row-subtitle d-block mb-1">Alarm sound for all COR classes (or customize per subject below):</small>
+        <div className="d-flex gap-2 align-items-center">
+          <select value={bulkSound} onChange={(e) => applySoundToAll(e.target.value)} aria-label="COR alarm sound">
+            {ALARM_SOUND_OPTIONS.map((opt) => (
+              <option key={opt.id} value={opt.id}>{opt.label}</option>
+            ))}
+          </select>
+          <Button type="button" variant="secondary" onClick={() => previewAlarmSound(bulkSound)}>
+            Test
+          </Button>
+        </div>
+      </div>
+
       <div className="cor-list">
         {subjects.map((s) => {
           const low = needsReview(s);
+          const currentSound = normalizeAlarmSound(s.alarmSound || bulkSound);
           return (
-            <label key={s.id} className={`cor-row${low ? ' warn' : ''}`}>
-              <input type="checkbox" checked={picked.includes(s.id)} onChange={() => setPicked((p) => toggleSelection(p, s.id))} />
-              <span className="cor-main">
-                <b>{subjectTitle(s)}</b>
-                <small>{`${daysLabel(s.days)} · ${timeRange(s)}`}</small>
-                <small>{detailLine(s)}</small>
-                {low && s.reviewNote && <small className="cor-note">{s.reviewNote}</small>}
-              </span>
+            <div key={s.id} className={`cor-row${low ? ' warn' : ''}`} style={{ flexWrap: 'wrap', gap: '8px' }}>
+              <label className="d-flex align-items-start gap-2 flex-grow-1" style={{ cursor: 'pointer' }}>
+                <input type="checkbox" checked={picked.includes(s.id)} onChange={() => setPicked((p) => toggleSelection(p, s.id))} />
+                <span className="cor-main">
+                  <b>{subjectTitle(s)}</b>
+                  <small>{`${daysLabel(s.days)} · ${timeRange(s)}`}</small>
+                  <small>{detailLine(s)}</small>
+                  {low && s.reviewNote && <small className="cor-note">{s.reviewNote}</small>}
+                </span>
+              </label>
               {low ? <Pill variant="warn">Review</Pill> : <Pill variant="ok">Ready</Pill>}
-            </label>
+              <div className="w-100 d-flex gap-2 align-items-center mt-1">
+                <select
+                  value={currentSound}
+                  onChange={(e) => setSubjectSound(s.id, e.target.value)}
+                  aria-label={`Alarm sound for ${subjectTitle(s)}`}
+                >
+                  {ALARM_SOUND_OPTIONS.map((opt) => (
+                    <option key={opt.id} value={opt.id}>{opt.label}</option>
+                  ))}
+                </select>
+                <Button type="button" variant="ghost" onClick={() => previewAlarmSound(currentSound)}>
+                  Play
+                </Button>
+              </div>
+            </div>
           );
         })}
       </div>
@@ -214,16 +265,19 @@ export function CorUpload() {
   const createCard = (
     <Card variant="pri" header={<>Confirm classes{periodLabel && <span>{` ${periodLabel}`}</span>}</>}>
       <div className="cor-list">
-        {chosen.map((s) => (
-          <div key={s.id} className="cor-row plain">
-            <span className="cor-main">
-              <b>{subjectTitle(s)}</b>
-              <small>{`${daysLabel(s.days)} · ${timeRange(s)}`}</small>
-              <small>{detailLine(s)}</small>
-            </span>
-            {created.includes(s.id) && <Pill variant="ok">Created</Pill>}
-          </div>
-        ))}
+        {chosen.map((s) => {
+          const label = ALARM_SOUND_OPTIONS.find((o) => o.id === normalizeAlarmSound(s.alarmSound || bulkSound))?.label;
+          return (
+            <div key={s.id} className="cor-row plain">
+              <span className="cor-main">
+                <b>{subjectTitle(s)}</b>
+                <small>{`${daysLabel(s.days)} · ${timeRange(s)}`}</small>
+                <small>{`${detailLine(s)} · 🔔 ${label}`}</small>
+              </span>
+              {created.includes(s.id) && <Pill variant="ok">Created</Pill>}
+            </div>
+          );
+        })}
       </div>
       {error && <NoteBanner className="mb-3">{error}</NoteBanner>}
       <div className="cor-actions">

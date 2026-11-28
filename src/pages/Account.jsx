@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { handleError } from '../lib/errors';
 import { useAuth } from '../contexts/AuthContext';
@@ -12,7 +12,7 @@ import { REMINDER_OFFSETS } from '../models/constants.js';
 import { SNOOZE_OPTIONS } from '../lib/reminders.js';
 import { PERMISSION } from '../reminders/ReminderAdapter.js';
 import {
-  clearCustomAlarmSound, getCustomAlarmSound, saveCustomAlarmSound, stopAlarmAudio,
+  ALARM_SOUND_OPTIONS, normalizeAlarmSound, previewAlarmSound, setPreferredAlarmSound, stopAlarmAudio,
 } from '../reminders/alarmAudio.js';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -60,9 +60,6 @@ export function Account() {
   const [reminderSettings, setReminderSettings] = useState(() => reminders.getSettings());
   const [permission, setPermission] = useState(() => reminders.getPermission());
   const [enabling, setEnabling] = useState(false);
-  const [customSoundName, setCustomSoundName] = useState('');
-  const [soundMsg, setSoundMsg] = useState('');
-  const audioInputRef = useRef(null);
   const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
   const flip = (k) => (v) => setPrefs({ ...prefs, [k]: v });
 
@@ -70,9 +67,6 @@ export function Account() {
     let alive = true;
     reminders.refreshPermission?.().then((p) => {
       if (alive && p) setPermission(p);
-    });
-    getCustomAlarmSound().then((rec) => {
-      if (alive && rec?.name) setCustomSoundName(rec.name);
     });
     return () => {
       alive = false;
@@ -95,30 +89,13 @@ export function Account() {
     try { setPermission(await reminders.requestPermission()); } finally { setEnabling(false); }
   };
 
-  const handleImportAudio = async (e) => {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (!file) return;
-    if (file.size > 15 * 1024 * 1024) {
-      setSoundMsg('File must be under 15 MB.');
-      return;
-    }
-    try {
-      const saved = await saveCustomAlarmSound(file);
-      setCustomSoundName(saved.name);
-      setSoundMsg(`Imported: ${saved.name}`);
-      await changeReminderSetting({ sound: 'custom' });
-    } catch {
-      setSoundMsg('Unsupported audio file.');
-    }
-  };
+  const activeDefaultSound = normalizeAlarmSound(reminderSettings.sound);
+  const activeOption = ALARM_SOUND_OPTIONS.find((o) => o.id === activeDefaultSound);
 
-  const handleRemoveCustomAudio = async () => {
-    stopAlarmAudio();
-    await clearCustomAlarmSound();
-    setCustomSoundName('');
-    setSoundMsg('Using phone default alarm sound.');
-    await changeReminderSetting({ sound: 'default' });
+  const handleSelectDefaultSound = async (nextId) => {
+    const resolved = setPreferredAlarmSound(nextId);
+    previewAlarmSound(resolved);
+    await changeReminderSetting({ sound: resolved });
   };
 
   return (
@@ -181,28 +158,22 @@ export function Account() {
                       {REMINDER_OFFSETS.map((m) => <option key={m} value={m}>{offsetLabel(m)}</option>)}
                     </select>
                   </FormField>
-                  <FormField as="div" label="Alarm sound">
-                    <div className="d-flex flex-wrap gap-2 align-items-center">
-                      <input
-                        ref={audioInputRef}
-                        type="file"
-                        accept="audio/*"
-                        hidden
-                        onChange={handleImportAudio}
-                      />
-                      <Button type="button" variant="secondary" onClick={() => audioInputRef.current?.click()}>
-                        {customSoundName ? 'Replace sound' : 'Import sound'}
+                  <FormField as="div" label="Default alarm sound">
+                    <div className="d-flex gap-2 align-items-center">
+                      <select value={activeDefaultSound} onChange={(e) => handleSelectDefaultSound(e.target.value)}>
+                        {ALARM_SOUND_OPTIONS.map((opt) => (
+                          <option key={opt.id} value={opt.id}>{opt.label}</option>
+                        ))}
+                      </select>
+                      <Button type="button" variant="secondary" onClick={() => previewAlarmSound(activeDefaultSound)}>
+                        Preview
                       </Button>
-                      {customSoundName && (
-                        <Button type="button" variant="ghost" onClick={handleRemoveCustomAudio}>
-                          Use default
-                        </Button>
-                      )}
                     </div>
-                    <small className="row-subtitle d-block mt-1">
-                      {customSoundName ? `Active: ${customSoundName}` : 'Active: Phone default alarm tone'}
-                    </small>
-                    {soundMsg && <small role="status" className="form-msg d-block mt-1">{soundMsg}</small>}
+                    {activeOption && (
+                      <small className="row-subtitle d-block mt-1">
+                        {activeOption.description}
+                      </small>
+                    )}
                   </FormField>
                   <FormField as="div" label="Snooze">
                     <SegmentedControl options={SNOOZE_CHOICES} value={reminderSettings.snoozeMinutes} onChange={(snoozeMinutes) => changeReminderSetting({ snoozeMinutes })} ariaLabel="Snooze length" />
