@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
 import { useAuth } from '../contexts/AuthContext';
@@ -36,15 +36,15 @@ export function Login() {
         <img src="/favicon.svg" alt="" className="krono-login-watermark" />
       </div>
 
-      {/* Scattered 3D Mascots: Gym mascot top-center, study/navigation mascots on sides */}
+      {/* Boxless 3D Mascots: Gym top-center, Study mascots scattered on sides */}
       <div className="krono-scatter-stage" aria-hidden="true">
-        <div className="krono-scatter-mascot is-gym-top-center">
+        <div className="krono-3d-figure is-gym-top-center">
           <img src="/mascots/mascot_gym.jpg" alt="" />
         </div>
-        <div className="krono-scatter-mascot is-study-left">
+        <div className="krono-3d-figure is-study-left">
           <img src="/mascots/mascot_schedule.jpg" alt="" />
         </div>
-        <div className="krono-scatter-mascot is-study-right">
+        <div className="krono-3d-figure is-study-right">
           <img src="/mascots/mascot_map.jpg" alt="" />
         </div>
       </div>
@@ -55,8 +55,8 @@ export function Login() {
             <img src="/favicon.svg" alt="KRONO Logo" width="54" height="54" />
           </div>
           <div className="krono-login-badge">KRONO · ALL-IN-ONE</div>
-          <h1>KRONO</h1>
-          <p className="login-sub">Schedule · Fitness · Navigation</p>
+          <h1 className="krono-styled-title">KRONO</h1>
+          <p className="login-sub krono-styled-sub">Schedule · Fitness · Navigation</p>
         </div>
 
         {!online && <NoteBanner>Connect to the internet to sign in.</NoteBanner>}
@@ -88,6 +88,13 @@ export function Login() {
               </a>
             </div>
           )}
+        </div>
+      </div>
+
+      {/* Human-like walking mascot at the very bottom of Login */}
+      <div className="krono-bottom-walk-track" aria-hidden="true">
+        <div className="krono-3d-walker">
+          <img src="/mascots/mascot_schedule.jpg" alt="" />
         </div>
       </div>
     </main>
