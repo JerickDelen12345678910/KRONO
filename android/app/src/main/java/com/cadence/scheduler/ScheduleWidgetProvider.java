@@ -76,39 +76,31 @@ public class ScheduleWidgetProvider extends AppWidgetProvider {
 
     private static void applyResponsiveLayout(RemoteViews views, AppWidgetManager manager, int widgetId, boolean hasLocation) {
         Bundle options = manager.getAppWidgetOptions(widgetId);
-        int minW = options != null ? options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 260) : 260;
-        int minH = options != null ? options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 110) : 110;
+        int minWidth = options != null ? options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 240) : 240;
+        int minHeight = options != null ? options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 110) : 110;
 
-        boolean isCompactW = minW < 200;
-        boolean isShortH = minH < 88;
-        boolean isLarge = minW >= 300 && minH >= 120;
+        boolean isShort = minHeight < 95;
+        boolean isVeryShort = minHeight < 76;
+        boolean isNarrow = minWidth < 190;
 
-        // Top bar visibility: hide on ultra-compact height/width so primary schedule remains crisp
-        views.setViewVisibility(R.id.widget_top_bar, (isShortH || isCompactW) ? View.GONE : View.VISIBLE);
-        views.setViewVisibility(R.id.widget_brand, minW < 235 ? View.GONE : View.VISIBLE);
+        // Time & Schedule Title MUST ALWAYS remain visible at every widget size
+        views.setViewVisibility(R.id.widget_time, View.VISIBLE);
+        views.setViewVisibility(R.id.widget_title, View.VISIBLE);
 
-        // Mascot frame & text scaling based on widget bounds
-        if (isCompactW || isShortH) {
-            views.setTextViewTextSize(R.id.widget_time, TypedValue.COMPLEX_UNIT_SP, 10f);
-            views.setTextViewTextSize(R.id.widget_title, TypedValue.COMPLEX_UNIT_SP, 15f);
-            views.setTextViewTextSize(R.id.widget_subtitle, TypedValue.COMPLEX_UNIT_SP, 10f);
-            views.setViewVisibility(R.id.widget_location, View.GONE);
-            views.setViewVisibility(R.id.widget_subtitle, isShortH ? View.GONE : View.VISIBLE);
-        } else if (isLarge) {
-            views.setTextViewTextSize(R.id.widget_time, TypedValue.COMPLEX_UNIT_SP, 12f);
-            views.setTextViewTextSize(R.id.widget_title, TypedValue.COMPLEX_UNIT_SP, 20f);
-            views.setTextViewTextSize(R.id.widget_location, TypedValue.COMPLEX_UNIT_SP, 12f);
-            views.setTextViewTextSize(R.id.widget_subtitle, TypedValue.COMPLEX_UNIT_SP, 12f);
-            views.setViewVisibility(R.id.widget_location, hasLocation ? View.VISIBLE : View.GONE);
-            views.setViewVisibility(R.id.widget_subtitle, View.VISIBLE);
-        } else {
-            views.setTextViewTextSize(R.id.widget_time, TypedValue.COMPLEX_UNIT_SP, 11f);
-            views.setTextViewTextSize(R.id.widget_title, TypedValue.COMPLEX_UNIT_SP, 17f);
-            views.setTextViewTextSize(R.id.widget_location, TypedValue.COMPLEX_UNIT_SP, 11f);
-            views.setTextViewTextSize(R.id.widget_subtitle, TypedValue.COMPLEX_UNIT_SP, 11f);
-            views.setViewVisibility(R.id.widget_location, hasLocation ? View.VISIBLE : View.GONE);
-            views.setViewVisibility(R.id.widget_subtitle, View.VISIBLE);
-        }
+        // Top bar hides only when vertically very compact so Time + Schedule get full height
+        views.setViewVisibility(R.id.widget_top_bar, isVeryShort ? View.GONE : View.VISIBLE);
+        views.setViewVisibility(R.id.widget_brand, isNarrow ? View.GONE : View.VISIBLE);
+
+        // Mascot hides only if width is ultra-narrow (< 165dp) so text never gets squeezed
+        views.setViewVisibility(R.id.widget_mascot_frame, minWidth < 165 ? View.GONE : View.VISIBLE);
+
+        // Secondary lines collapse gracefully on short heights while preserving Time & Title
+        views.setViewVisibility(R.id.widget_location, (!isShort && hasLocation) ? View.VISIBLE : View.GONE);
+        views.setViewVisibility(R.id.widget_subtitle, isVeryShort ? View.GONE : View.VISIBLE);
+
+        // Responsive text sizing
+        views.setTextViewTextSize(R.id.widget_time, android.util.TypedValue.COMPLEX_UNIT_SP, isNarrow ? 9.5f : 10.5f);
+        views.setTextViewTextSize(R.id.widget_title, android.util.TypedValue.COMPLEX_UNIT_SP, isShort ? 13.5f : 15.5f);
     }
 
     private static void updateSingleWidget(Context context, AppWidgetManager manager, int widgetId) {
@@ -191,10 +183,10 @@ public class ScheduleWidgetProvider extends AppWidgetProvider {
             String mode = detectMode(active);
             applyModeVisuals(views, mode, rem + "m left");
 
-            views.setTextViewText(R.id.widget_time, "NOW · " + to12h(start) + " – " + to12h(end));
+            views.setTextViewText(R.id.widget_time, "NOW • " + to12h(start) + " – " + to12h(end));
             views.setTextViewText(R.id.widget_title, displayCode);
             if (!location.isEmpty()) {
-                views.setTextViewText(R.id.widget_location, "📍 " + location);
+                views.setTextViewText(R.id.widget_location, "ðŸ“ " + location);
             }
 
             String nextLine = next != null
@@ -215,10 +207,10 @@ public class ScheduleWidgetProvider extends AppWidgetProvider {
             String mode = detectMode(next);
             applyModeVisuals(views, mode, "UP NEXT");
 
-            views.setTextViewText(R.id.widget_time, "NEXT · " + to12h(start) + " – " + to12h(end));
+            views.setTextViewText(R.id.widget_time, "NEXT • " + to12h(start) + " – " + to12h(end));
             views.setTextViewText(R.id.widget_title, displayCode);
             if (!location.isEmpty()) {
-                views.setTextViewText(R.id.widget_location, "📍 " + location);
+                views.setTextViewText(R.id.widget_location, "ðŸ“ " + location);
             }
 
             String afterLine = afterNext != null
@@ -264,17 +256,17 @@ public class ScheduleWidgetProvider extends AppWidgetProvider {
     private static void applyModeVisuals(RemoteViews views, String mode, String statusTag) {
         if ("gym".equals(mode)) {
             views.setImageViewResource(R.id.widget_mascot, R.drawable.mascot_gym);
-            views.setTextViewText(R.id.widget_mode_badge, "● FITNESS · " + statusTag);
+            views.setTextViewText(R.id.widget_mode_badge, "â— FITNESS Â· " + statusTag);
             views.setTextColor(R.id.widget_mode_badge, Color.parseColor("#FB923C"));
             views.setTextColor(R.id.widget_time, Color.parseColor("#FDBA74"));
         } else if ("map".equals(mode)) {
             views.setImageViewResource(R.id.widget_mascot, R.drawable.mascot_map);
-            views.setTextViewText(R.id.widget_mode_badge, "● ROUTE · " + statusTag);
+            views.setTextViewText(R.id.widget_mode_badge, "â— ROUTE Â· " + statusTag);
             views.setTextColor(R.id.widget_mode_badge, Color.parseColor("#34D399"));
             views.setTextColor(R.id.widget_time, Color.parseColor("#6EE7B7"));
         } else {
             views.setImageViewResource(R.id.widget_mascot, R.drawable.mascot_schedule);
-            views.setTextViewText(R.id.widget_mode_badge, "● SCHEDULE · " + statusTag);
+            views.setTextViewText(R.id.widget_mode_badge, "â— SCHEDULE Â· " + statusTag);
             views.setTextColor(R.id.widget_mode_badge, Color.parseColor("#38BDF8"));
             views.setTextColor(R.id.widget_time, Color.parseColor("#7DD3FC"));
         }

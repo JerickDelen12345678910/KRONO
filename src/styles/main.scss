@@ -2367,3 +2367,112 @@ button, input, select, textarea {
     height: 82px !important;
   }
 }
+
+// ============================================
+// DISTINCT CATEGORY COLOR CODING & RICH UI ANIMATIONS
+// ============================================
+
+:root {
+  --cat-school: #38bdf8;
+  --cat-school-soft: rgba(56, 189, 248, 0.16);
+  --cat-exercise: #f97316;
+  --cat-exercise-soft: rgba(249, 115, 22, 0.16);
+  --cat-travel: #10b981;
+  --cat-travel-soft: rgba(16, 185, 129, 0.16);
+  --cat-projects: #a855f7;
+  --cat-projects-soft: rgba(168, 85, 247, 0.16);
+  --cat-personal: #eab308;
+  --cat-personal-soft: rgba(234, 179, 8, 0.16);
+}
+
+// Staggered smooth entrance for cards, rows, and KPIs
+.kpi-grid > *,
+.today-rows > *,
+.cor-list > *,
+.cols .stack > * {
+  animation: kronoCardRise 0.44s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.kpi-grid > *:nth-child(1),
+.today-rows > *:nth-child(1),
+.cols .stack > *:nth-child(1) { animation-delay: 0.04s; }
+.kpi-grid > *:nth-child(2),
+.today-rows > *:nth-child(2),
+.cols .stack > *:nth-child(2) { animation-delay: 0.09s; }
+.kpi-grid > *:nth-child(3),
+.today-rows > *:nth-child(3),
+.cols .stack > *:nth-child(3) { animation-delay: 0.14s; }
+.kpi-grid > *:nth-child(4),
+.today-rows > *:nth-child(4),
+.cols .stack > *:nth-child(4) { animation-delay: 0.19s; }
+
+@keyframes kronoCardRise {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+// Interactive spring hover & tap feedback on cards and quick-action buttons
+.ui-card,
+.next-card,
+.qa-btn,
+.kpi-card {
+  transition: transform 0.24s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.24s ease, border-color 0.24s ease;
+}
+
+.ui-card:hover,
+.next-card:hover,
+.kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 30px rgba(2, 6, 23, 0.32);
+}
+
+.qa-btn:hover {
+  transform: translateY(-3px) scale(1.015);
+  box-shadow: 0 12px 24px rgba(14, 165, 233, 0.22);
+}
+
+.qa-btn:active {
+  transform: scale(0.97);
+}
+
+// Distinct category pill & bar colors
+.pill.is-violet,
+[data-color="violet"] {
+  background: var(--cat-projects-soft) !important;
+  color: var(--cat-projects) !important;
+  border-color: rgba(168, 85, 247, 0.35) !important;
+}
+
+.pill.is-warning,
+[data-color="warning"] {
+  background: var(--cat-exercise-soft) !important;
+  color: var(--cat-exercise) !important;
+  border-color: rgba(249, 115, 22, 0.35) !important;
+}
+
+.pill.is-success,
+[data-color="success"] {
+  background: var(--cat-travel-soft) !important;
+  color: var(--cat-travel) !important;
+  border-color: rgba(16, 185, 129, 0.35) !important;
+}
+
+.pill.is-primary,
+[data-color="primary"] {
+  background: var(--cat-school-soft) !important;
+  color: var(--cat-school) !important;
+  border-color: rgba(56, 189, 248, 0.35) !important;
+}
+
+.pill.is-slate,
+[data-color="slate"] {
+  background: var(--cat-personal-soft) !important;
+  color: var(--cat-personal) !important;
+  border-color: rgba(234, 179, 8, 0.35) !important;
+}

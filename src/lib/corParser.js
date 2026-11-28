@@ -1,31 +1,4 @@
-// src/lib/corParser.js
-// Phase 8 PACE 1 — pure COR text-parsing core. No OCR engine, no UI: this module turns raw
-// extracted/OCR text (what Tesseract.js will hand back once a later PACE wires it in) into
-// candidate subjects shaped exactly like the rows src/lib/cor.js's sampleSubjects() produces —
-// { id, code, name, days, startTime, endTime, room, professor, confidence, reviewNote } — so a
-// later PACE can feed a real engine's output straight into the existing Review step with no
-// changes to cor.js or CorUpload.jsx.
-//
-// Only one COR layout is implemented: CITY_COLLEGE, built against a real sample. Supporting
-// another school (MinSU, Divine, Luna, ...) means adding another entry to LAYOUTS with its own
-// detect/parseRows/parseRow — nothing here needs to change for that.
-//
-// This layout's COR never prints an instructor name or a descriptive subject title (only a
-// course code), so `professor` and `name` are always '' for CITY_COLLEGE; `code` carries the
-// course code exactly as printed. A course that meets at two different times (e.g. a lecture
-// and a lab slot) comes back as two separate session candidates sharing the same `code`, rather
-// than forced into one — the existing schedule model is one time-block per subject, so this is
-// the accurate fit with no changes needed elsewhere.
-//
-// Phase 8 PACE 3: parseCorText also returns `period` — the school year and/or semester read from
-// the page header (the lines above the first table row), or null when the header has neither.
-// Nothing is guessed: a school year only counts when it is two consecutive years (2026-2027),
-// and a semester only when its words are actually printed.
-//
-// Phase 8 PACE 2b: a row's day groups and room are found by shape, so the parser reads the same result
-// whether the text came column by column (PDF text layer order) or line by line (visual / OCR order).
-
-const DAY_INDEX = {
+﻿const DAY_INDEX = {
   SU: 0, SUN: 0,
   M: 1, MON: 1,
   T: 2, TUE: 2,
@@ -38,15 +11,8 @@ const DAY_INDEX = {
 const SECTION_PATTERN = /[A-Z]{2,10}\s+\d{1,3}-\d{1,2}(?:-[A-Z]{1,2})?\b/;
 const TIME_PATTERN = /\d{1,2}:\d{2}\s*(?:AM|PM)\s*-\s*\d{1,2}:\d{2}\s*(?:AM|PM)/i;
 const TIME_RE = /(\d{1,2}):(\d{2})\s*(AM|PM)\s*-\s*(\d{1,2}):(\d{2})\s*(AM|PM)/gi;
-// Course text, then exactly 4 single/double-digit columns (Lec, Lab, Tuition Units, Cred Units),
-// then the first time range. Non-greedy so a course code that itself ends in digits (e.g.
-// "PATHFIT 4", "DM 103") is kept whole: the regex only stops growing once a valid 4-number +
-// time-range tail is found, which self-corrects past any shorter but wrong split.
 const ANCHOR_RE = /^(.*?)\s+(\d{1,2})\s+(\d{1,2})\s+(\d{1,2})\s+(\d{1,2})\s+(\d{1,2}:\d{2}\s*(?:AM|PM).*)$/i;
 const ROW_SECTION_RE = /^([A-Z]{2,10}\s+\d{1,3}-\d{1,2}(?:-[A-Z]{1,2})?)\b/;
-// What a day-group token looks like, so day groups can be told apart from room words by SHAPE rather than
-// by position: one known abbreviation ("T", "TH"), or slash-joined letters ("TH/T", "W/M/F"). A garbled
-// slash group ("TH/I") still counts as day-like, so it is flagged for review instead of leaking into the room.
 const SINGLE_DAY_RE = /^(?:SUN|MON|TUE|WED|THURS|THU|FRI|SAT|SU|TH|M|T|W|F|S)$/i;
 const SLASH_DAYS_RE = /^[A-Za-z]{1,5}(?:\/[A-Za-z]{1,5})+$/;
 const isDayLike = (token) => SINGLE_DAY_RE.test(token) || SLASH_DAYS_RE.test(token);
@@ -57,7 +23,6 @@ function to24h(hour, minute, meridiem) {
   return `${String(h).padStart(2, '0')}:${minute}`;
 }
 
-/** One weekly day-group, e.g. "TH/T" or "W/M/F" or a lone "T". Unknown tokens are counted, not guessed. */
 function parseDayGroup(token) {
   const parts = token.split('/').map((t) => t.trim().toUpperCase()).filter(Boolean);
   const days = [];
@@ -69,11 +34,6 @@ function parseDayGroup(token) {
   return { days: [...new Set(days)].sort((a, b) => a - b), unknown };
 }
 
-/**
- * Splits a room's raw trailing text into one room per session. "iLAB iLAB" (an exact repeat)
- * splits evenly, one per session; anything else (including a single "COM LAB 1" for two
- * sessions, or nothing at all) is treated as one room shared by every session of the row.
- */
 function splitRoom(raw, sessionCount) {
   const text = raw.trim();
   if (!text) return Array(sessionCount).fill('');
@@ -88,11 +48,6 @@ function splitRoom(raw, sessionCount) {
   return Array(sessionCount).fill(text);
 }
 
-/**
- * Joins OCR-wrapped lines into one text block per table row (times/days/rooms often land on
- * their own line), and stops entirely once the fee/signature block starts — those lines are
- * never treated as part of the schedule.
- */
 function groupRows(text) {
   const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
   const rows = [];
@@ -114,7 +69,42 @@ function groupRows(text) {
   return rows;
 }
 
-/** One table row's joined text -> its session candidates, or `{ unparsed }` if it never matches the table pattern. */
+const sameDaySet = (a = [], b = []) => a.length === b.length && a.every((v, idx) => v === b[idx]);
+
+/** Merges consecutive sessions (e.g. 07:00-08:00 + 08:00-09:00) for the same subject & day into one clean block */
+export function mergeConsecutiveSessions(sessions = []) {
+  const sorted = [...sessions].sort((a, b) => {
+    const codeCmp = String(a.code || '').localeCompare(String(b.code || ''));
+    if (codeCmp !== 0) return codeCmp;
+    const dayCmp = String((a.days || []).join(',')).localeCompare(String((b.days || []).join(',')));
+    if (dayCmp !== 0) return dayCmp;
+    return String(a.startTime || '').localeCompare(String(b.startTime || ''));
+  });
+
+  const merged = [];
+  for (const item of sorted) {
+    const prev = merged[merged.length - 1];
+    const sameSubject = prev
+      && String(prev.code || '').trim().toUpperCase() === String(item.code || '').trim().toUpperCase()
+      && String(prev.name || '').trim().toUpperCase() === String(item.name || '').trim().toUpperCase();
+    const sameDays = prev && sameDaySet(prev.days, item.days);
+    const isContiguous = prev && prev.endTime && item.startTime && prev.endTime === item.startTime;
+
+    if (sameSubject && sameDays && isContiguous) {
+      const rooms = [prev.room, item.room].filter(Boolean);
+      const uniqueRooms = [...new Set(rooms)];
+      prev.endTime = item.endTime;
+      prev.room = uniqueRooms.join(' / ');
+      prev.confidence = Math.min(prev.confidence ?? 1, item.confidence ?? 1);
+      const notes = [prev.reviewNote, item.reviewNote].filter(Boolean);
+      prev.reviewNote = [...new Set(notes)].join('; ');
+    } else {
+      merged.push({ ...item, days: [...(item.days || [])] });
+    }
+  }
+  return merged;
+}
+
 function parseRow(raw) {
   const anchor = ANCHOR_RE.exec(raw.text);
   if (!anchor) return { unparsed: { row: raw.n, text: raw.text } };
@@ -130,12 +120,6 @@ function parseRow(raw) {
     return { startTime, endTime, valid: endTime > startTime };
   });
 
-  // Everything that is not a time range is a day group or part of a room. They are told apart by shape,
-  // not position, so the result does not depend on the order the extractor printed them in: column by
-  // column ("t1 t2 d1 d2 room", a PDF's internal text order) or line by line ("t1 d1 room t2 d2", what a
-  // reader or an OCR engine sees). Either way the i-th day group belongs to the i-th time range.
-  // OCR also sprinkles stray marks around tokens ("‘T/TH", "W/M/F_", a lone "~" or "="): marks on the edges of a
-  // token are ignored when deciding whether it is a day group, and a token that is only marks is dropped.
   const leftover = rest.replace(TIME_RE, ' ').split(/\s+/).filter(Boolean);
   const dayGroups = [];
   const roomWords = [];
@@ -145,7 +129,6 @@ function parseRow(raw) {
     if (isDayLike(core)) dayGroups.push(core);
     else roomWords.push(token);
   }
-  // A room that wrapped onto the next line mid-word ("KALAP-" / "GYM") is rejoined.
   const roomRaw = roomWords.join(' ').replace(/(\w)-\s+(\w)/g, '$1$2');
   const rooms = splitRoom(roomRaw, times.length);
 
@@ -170,12 +153,9 @@ function parseRow(raw) {
     };
   });
 
-  return { sessions };
+  return { sessions: mergeConsecutiveSessions(sessions) };
 }
 
-// ---- academic period (page header) ----
-// Only the lines ABOVE the first table row are searched, so a year-like string in a row, a room or
-// the fee/signature block can never be mistaken for the period.
 const SCHOOL_YEAR_RE = /\b(20\d{2})\s*[-–—]\s*(20\d{2})\b/g;
 const SEMESTER_PATTERNS = [
   [/\b(?:1st|first)\s+sem(?:ester)?\b/i, '1st Sem'],
@@ -195,7 +175,6 @@ function headerText(text) {
   return header.join('\n');
 }
 
-/** Page header -> { startYear, endYear, semester, label } or null when it prints neither a school year nor a semester. */
 function parsePeriod(text) {
   const header = headerText(text);
   const years = [...header.matchAll(SCHOOL_YEAR_RE)].find((m) => Number(m[2]) === Number(m[1]) + 1);
@@ -224,22 +203,22 @@ export function detectLayout(text) {
   return null;
 }
 
-/**
- * Entry point: raw extracted/OCR text -> candidate subjects (one per weekly time-block) plus any
- * table rows that didn't match the layout's pattern at all, for the Review step to surface as-is
- * rather than guess at. `period` is the school year / semester printed in the page header, or null.
- */
 export function parseCorText(text, { layoutId } = {}) {
   const id = layoutId ?? detectLayout(text);
   const layout = id && LAYOUTS[id];
   if (!layout) return { layout: null, subjects: [], unparsedRows: [], period: null };
 
-  const subjects = [];
+  const rawSubjects = [];
   const unparsedRows = [];
   for (const raw of layout.parseRows(text)) {
     const result = layout.parseRow(raw);
     if (result.unparsed) unparsedRows.push(result.unparsed);
-    else subjects.push(...result.sessions);
+    else rawSubjects.push(...result.sessions);
   }
-  return { layout: id, subjects, unparsedRows, period: layout.parsePeriod ? layout.parsePeriod(text) : null };
+  return {
+    layout: id,
+    subjects: mergeConsecutiveSessions(rawSubjects),
+    unparsedRows,
+    period: layout.parsePeriod ? layout.parsePeriod(text) : null,
+  };
 }

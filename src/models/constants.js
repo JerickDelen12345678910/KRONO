@@ -1,7 +1,5 @@
-// Shared constants. Names/values come from docs/PROJECT_PLAN.md and docs/DESIGN_LOCK.md.
-const freeze = Object.freeze;
+﻿const freeze = Object.freeze;
 
-// Firestore/local collection names under users/{userId}/ (plan section 8).
 export const COLLECTIONS = freeze({
   SCHEDULES: 'schedules', OCCURRENCES: 'occurrences', ACADEMIC_PERIODS: 'academicPeriods', SUBJECTS: 'subjects',
   WORKOUTS: 'workouts', EXERCISE_HISTORY: 'exerciseHistory', DESTINATIONS: 'destinations',
@@ -11,14 +9,20 @@ export const COLLECTIONS = freeze({
 export const MODULE = freeze({ SCHEDULER: 'scheduler', FITNESS: 'fitness', MAP: 'map' });
 export const USER_TYPES = freeze(['Student', 'Professional', 'Other']);
 
-// Scheduler
+// Scheduler — Distinct, high-contrast color tokens per category
 export const CATEGORIES = freeze(['School', 'Personal', 'Exercise', 'Projects', 'Travel']);
-export const SCHEDULE_COLORS = freeze(['primary', 'slate', 'success', 'warning']); // design tokens, not hex
-export const CATEGORY_COLOR = freeze({ School: 'primary', Personal: 'slate', Exercise: 'slate', Projects: 'slate', Travel: 'primary' });
+export const SCHEDULE_COLORS = freeze(['primary', 'slate', 'success', 'warning', 'violet']);
+export const CATEGORY_COLOR = freeze({
+  School: 'primary',     // Electric Blue (Classes & COR)
+  Exercise: 'warning',   // Energetic Orange (Gym & Workouts)
+  Travel: 'success',     // Emerald Mint (Routes & Commute)
+  Projects: 'violet',    // Royal Violet (Projects & Coding)
+  Personal: 'slate',     // Cool Slate (Personal & Errands)
+});
 export const PRIORITY = freeze(['low', 'medium', 'high']);
 export const REPEAT_TYPE = freeze({ NONE: 'none', DAILY: 'daily', WEEKLY: 'weekly', SELECTED_DAYS: 'selectedDays', CUSTOM: 'custom' });
 export const OCCURRENCE_STATUS = freeze({ SCHEDULED: 'scheduled', DONE: 'done', SKIPPED: 'skipped', CANCELLED: 'cancelled' });
-export const REMINDER_OFFSETS = freeze([0, 5, 10, 15, 30, 60]); // minutes before start; a custom number is also allowed
+export const REMINDER_OFFSETS = freeze([0, 5, 10, 15, 30, 60]);
 export const PERIOD_TYPES = freeze(['semester', 'schoolYear', 'custom']);
 export const SUBJECT_SOURCE = freeze({ MANUAL: 'manual', COR: 'cor' });
 
@@ -31,9 +35,9 @@ export const ENTRY_STATUS = freeze({ PENDING: 'pending', COMPLETED: 'completed',
 // Map
 export const TRAVEL_MODES = freeze(['driving', 'walking', 'cycling']);
 
-// Sync (matches the Account pipeline: Saved locally -> Waiting -> Syncing -> Synced)
+// Sync
 export const SYNC_STATUS = freeze({ LOCAL: 'local', PENDING: 'pending', SYNCING: 'syncing', SYNCED: 'synced' });
 
-// Unified activity (dashboard)
+// Unified activity
 export const ACTIVITY_TYPE = freeze({ SCHEDULE: 'schedule', WORKOUT: 'workout', TRIP: 'trip', REMINDER: 'reminder' });
 export const ACTIVITY_STATUS = freeze({ SCHEDULED: 'scheduled', IN_PROGRESS: 'in_progress', DONE: 'done', SKIPPED: 'skipped', CANCELLED: 'cancelled' });

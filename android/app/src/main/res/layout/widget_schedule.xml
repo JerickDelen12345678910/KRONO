@@ -6,50 +6,59 @@
     android:background="@drawable/widget_glass_bg"
     android:gravity="center_vertical"
     android:orientation="vertical"
-    android:padding="13dp">
+    android:paddingStart="11dp"
+    android:paddingTop="8dp"
+    android:paddingEnd="11dp"
+    android:paddingBottom="8dp">
 
-    <!-- Top Bar: 3D Brand Pill + Highlighted Live Status Pill -->
-    <RelativeLayout
+    <!-- Top Bar: Brand + Live Mode Badge -->
+    <LinearLayout
         android:id="@+id/widget_top_bar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="8dp">
+        android:layout_marginBottom="4dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
 
         <TextView
             android:id="@+id/widget_brand"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_alignParentStart="true"
             android:background="@drawable/widget_time_pill"
-            android:letterSpacing="0.16"
-            android:paddingStart="9dp"
-            android:paddingTop="3dp"
-            android:paddingEnd="9dp"
-            android:paddingBottom="3dp"
+            android:letterSpacing="0.14"
+            android:paddingStart="7dp"
+            android:paddingTop="2dp"
+            android:paddingEnd="7dp"
+            android:paddingBottom="2dp"
             android:text="KRONO"
             android:textColor="#E0F2FE"
-            android:textSize="10sp"
+            android:textSize="9.5sp"
             android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/widget_spacer"
+            android:layout_width="0dp"
+            android:layout_height="1dp"
+            android:layout_weight="1" />
 
         <TextView
             android:id="@+id/widget_mode_badge"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_alignParentEnd="true"
             android:background="@drawable/widget_status_pill"
             android:ellipsize="end"
             android:maxLines="1"
-            android:paddingStart="9dp"
-            android:paddingTop="3dp"
-            android:paddingEnd="9dp"
-            android:paddingBottom="3dp"
+            android:paddingStart="8dp"
+            android:paddingTop="2dp"
+            android:paddingEnd="8dp"
+            android:paddingBottom="2dp"
             android:text="• SCHEDULE · LIVE"
             android:textColor="#38BDF8"
-            android:textSize="10.5sp"
+            android:textSize="10sp"
             android:textStyle="bold" />
-    </RelativeLayout>
+    </LinearLayout>
 
-    <!-- Main Row: 3D Framed Icon/Mascot + Highlighted Time & Schedule Info -->
+    <!-- Main Row: Mascot + Protected Time & Schedule Details (never clipped on resize) -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
@@ -59,11 +68,11 @@
 
         <FrameLayout
             android:id="@+id/widget_mascot_frame"
-            android:layout_width="60dp"
-            android:layout_height="60dp"
-            android:layout_marginEnd="12dp"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginEnd="10dp"
             android:background="@drawable/widget_3d_icon_frame"
-            android:padding="4dp">
+            android:padding="3dp">
 
             <ImageView
                 android:id="@+id/widget_mascot"
@@ -76,11 +85,12 @@
 
         <LinearLayout
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
+            android:layout_height="match_parent"
             android:layout_weight="1"
+            android:gravity="center_vertical"
             android:orientation="vertical">
 
-            <!-- Highlighted Time Pill -->
+            <!-- Highlighted Time Pill (Always visible, never hidden) -->
             <TextView
                 android:id="@+id/widget_time"
                 android:layout_width="wrap_content"
@@ -88,52 +98,52 @@
                 android:background="@drawable/widget_time_pill"
                 android:ellipsize="end"
                 android:maxLines="1"
-                android:paddingStart="9dp"
-                android:paddingTop="3dp"
-                android:paddingEnd="9dp"
-                android:paddingBottom="3dp"
-                android:text="NOW · 08:00 AM – 09:30 AM"
+                android:paddingStart="8dp"
+                android:paddingTop="2dp"
+                android:paddingEnd="8dp"
+                android:paddingBottom="2dp"
+                android:text="NOW · 7:00 AM – 9:00 AM"
                 android:textColor="#7DD3FC"
-                android:textSize="11sp"
+                android:textSize="10.5sp"
                 android:textStyle="bold" />
 
-            <!-- Primary Title / Course Code -->
+            <!-- Primary Title / Course Code (Always visible, scales cleanly) -->
             <TextView
                 android:id="@+id/widget_title"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="5dp"
+                android:layout_marginTop="2dp"
                 android:ellipsize="end"
                 android:maxLines="1"
                 android:text="CS 201"
                 android:textColor="#F8FAFC"
-                android:textSize="18sp"
+                android:textSize="15.5sp"
                 android:textStyle="bold" />
 
             <!-- Location / Room -->
             <TextView
                 android:id="@+id/widget_location"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="1dp"
                 android:ellipsize="end"
                 android:maxLines="1"
                 android:text="Room 304"
                 android:textColor="#BAE6FD"
-                android:textSize="11sp"
+                android:textSize="10.5sp"
                 android:textStyle="bold" />
 
             <!-- Upcoming / Secondary Info -->
             <TextView
                 android:id="@+id/widget_subtitle"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="3dp"
+                android:layout_marginTop="1dp"
                 android:ellipsize="end"
                 android:maxLines="1"
                 android:text="Up next: MATH 210 (10:00 AM)"
                 android:textColor="#CBD5E1"
-                android:textSize="11sp" />
+                android:textSize="10sp" />
         </LinearLayout>
     </LinearLayout>
 </LinearLayout>
