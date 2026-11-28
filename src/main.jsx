@@ -28,15 +28,21 @@ const MASCOTS = [
     name: 'Titan',
     role: 'Workouts & Macro Coach',
     src: '/mascots/mascot_gym.jpg',
-    accent: '#FB923C',
+    accent: '#38BDF8',
   },
   {
     id: 'map',
     name: 'Atlas',
     role: 'Live Route & ETA Radar',
     src: '/mascots/mascot_map.jpg',
-    accent: '#34D399',
+    accent: '#38BDF8',
   },
+];
+
+const BOOT_STEPS = [
+  { label: 'Syncing your schedule...', pct: 28 },
+  { label: 'Warming up workouts...', pct: 55 },
+  { label: 'Locating routes...', pct: 99 },
 ];
 
 // eslint-disable-next-line react-refresh/only-export-components
@@ -86,6 +92,7 @@ function ActiveAlarmOverlay() {
 // eslint-disable-next-line react-refresh/only-export-components
 function FirstInstallReviewGate({ children }) {
   const { user, loading } = useAuth();
+  const [agreed, setAgreed] = useState(false);
   const [accepted, setAccepted] = useState(() => {
     try {
       return localStorage.getItem(ONBOARDING_KEY) === 'true';
@@ -97,6 +104,7 @@ function FirstInstallReviewGate({ children }) {
   if (loading || user || accepted) return children;
 
   const handleContinue = async () => {
+    if (!agreed) return;
     try {
       localStorage.setItem(ONBOARDING_KEY, 'true');
     } catch {
@@ -120,19 +128,20 @@ function FirstInstallReviewGate({ children }) {
         <img src="/favicon.svg" alt="" className="krono-login-watermark" />
       </div>
 
-      <div className="krono-onboard-card krono-login-card krono-fade-in">
-        <div className="krono-onboard-mascots krono-3d-trio-mini">
-          {MASCOTS.map((m, idx) => (
-            <div
-              key={m.id}
-              className={`krono-onboard-avatar is-3d-pos-${idx}`}
-              style={{ '--delay': `${idx * 100}ms`, '--ring': m.accent }}
-            >
-              <img src={m.src} alt={m.name} />
-            </div>
-          ))}
+      {/* Scattered 3D Mascots: Titan top-center, Chrono & Atlas on sides */}
+      <div className="krono-scatter-stage" aria-hidden="true">
+        <div className="krono-scatter-mascot is-gym-top-center">
+          <img src="/mascots/mascot_gym.jpg" alt="" />
         </div>
+        <div className="krono-scatter-mascot is-study-left">
+          <img src="/mascots/mascot_schedule.jpg" alt="" />
+        </div>
+        <div className="krono-scatter-mascot is-study-right">
+          <img src="/mascots/mascot_map.jpg" alt="" />
+        </div>
+      </div>
 
+      <div className="krono-onboard-card krono-login-card krono-fade-in">
         <span className="krono-login-badge">WELCOME TO KRONO</span>
         <h2>Everything in Sync</h2>
         <p className="krono-onboard-lead">
@@ -141,29 +150,46 @@ function FirstInstallReviewGate({ children }) {
 
         <div className="krono-onboard-list">
           <div className="krono-onboard-item">
-            <span className="krono-onboard-dot" style={{ background: '#38BDF8' }} />
+            <span className="krono-onboard-dot" />
             <div>
               <b>Schedules, COR &amp; Alarms</b>
               <small>Uses Notifications &amp; Exact Alarms to alert you before classes and tasks.</small>
             </div>
+            <span className="krono-pillar-tag">CHRONO</span>
           </div>
           <div className="krono-onboard-item">
-            <span className="krono-onboard-dot" style={{ background: '#FB923C' }} />
+            <span className="krono-onboard-dot" />
             <div>
               <b>Fitness &amp; Program Scanner</b>
               <small>Reads uploaded COR/workout PDFs and images locally to build your routines.</small>
             </div>
+            <span className="krono-pillar-tag">TITAN</span>
           </div>
           <div className="krono-onboard-item">
-            <span className="krono-onboard-dot" style={{ background: '#34D399' }} />
+            <span className="krono-onboard-dot" />
             <div>
               <b>Live Route &amp; Leave-By Radar</b>
               <small>Uses Location (only while navigating) to estimate travel time and departure alerts.</small>
             </div>
+            <span className="krono-pillar-tag">ATLAS</span>
           </div>
         </div>
 
-        <button type="button" className="btn btn-full" onClick={handleContinue}>
+        <label className="krono-terms-check">
+          <input
+            type="checkbox"
+            checked={agreed}
+            onChange={(e) => setAgreed(e.target.checked)}
+          />
+          <span>I agree to the Terms &amp; Agreement</span>
+        </label>
+
+        <button
+          type="button"
+          className="btn btn-full"
+          disabled={!agreed}
+          onClick={handleContinue}
+        >
           Accept &amp; Continue to Sign In
         </button>
       </div>
@@ -174,56 +200,66 @@ function FirstInstallReviewGate({ children }) {
 // eslint-disable-next-line react-refresh/only-export-components
 function KronoSplashGate({ children }) {
   const [phase, setPhase] = useState('show');
+  const [stepIdx, setStepIdx] = useState(0);
 
   useEffect(() => {
-    const t1 = setTimeout(() => setPhase('exit'), 1850);
-    const t2 = setTimeout(() => setPhase('done'), 2350);
+    const s1 = setTimeout(() => setStepIdx(1), 650);
+    const s2 = setTimeout(() => setStepIdx(2), 1300);
+    const t1 = setTimeout(() => setPhase('exit'), 1950);
+    const t2 = setTimeout(() => setPhase('done'), 2400);
     return () => {
+      clearTimeout(s1);
+      clearTimeout(s2);
       clearTimeout(t1);
       clearTimeout(t2);
     };
   }, []);
+
+  const currentStep = BOOT_STEPS[stepIdx] || BOOT_STEPS[BOOT_STEPS.length - 1];
 
   return (
     <>
       {children}
       {phase !== 'done' && (
         <div
-          className={`krono-splash-overlay krono-dark-splash${phase === 'exit' ? ' is-exiting' : ''}`}
+          className={`krono-splash-overlay krono-chrono-splash${phase === 'exit' ? ' is-exiting' : ''}`}
           aria-hidden="true"
         >
-          <div className="krono-login-bg-art">
-            <div className="krono-login-glow krono-login-glow-1" />
-            <div className="krono-login-glow krono-login-glow-2" />
-            <img src="/favicon.svg" alt="" className="krono-login-watermark" />
-          </div>
-
-          <div className="krono-splash-stage krono-3d-stage">
-            <div className="krono-mascot-trio krono-3d-trio">
-              {MASCOTS.map((m, i) => (
-                <div
-                  key={m.id}
-                  className={`krono-mascot-card krono-3d-float-card is-pos-${i}`}
-                  style={{ '--stagger': `${i * 120}ms`, '--accent': m.accent }}
-                >
-                  <div className="krono-mascot-ring">
-                    <img src={m.src} alt={m.name} />
-                  </div>
-                  <span className="krono-mascot-tag">{m.name}</span>
-                </div>
-              ))}
-            </div>
-
-            <div className="krono-splash-copy">
-              <div className="krono-splash-logo-pill">
-                <img src="/favicon.svg" alt="" width="24" height="24" />
-                <span>KRONO</span>
+          <div className="krono-chrono-stage">
+            <div className="krono-chrono-ring-wrap">
+              <div className="krono-chrono-orbit" />
+              <div className="krono-chrono-core">
+                <svg width="64" height="64" viewBox="0 0 108 108" fill="none">
+                  <path
+                    d="M39 28V80M69 28L45 54L71 80"
+                    stroke="#F8FAFC"
+                    strokeWidth="11"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
               </div>
-              <small className="krono-splash-sub">SCHEDULE · FITNESS · NAVIGATION</small>
             </div>
 
-            <div className="krono-splash-bar">
-              <span />
+            <div className="krono-chrono-brand">
+              <div className="krono-chrono-title">KRONO</div>
+              <div className="krono-chrono-pillars">SCHEDULE · FITNESS · NAVIGATION</div>
+            </div>
+
+            <div className="krono-chrono-progress-wrap">
+              <div className="krono-chrono-track">
+                <div
+                  className="krono-chrono-fill"
+                  style={{ width: `${currentStep.pct}%` }}
+                />
+              </div>
+              <div className="krono-chrono-status">
+                {currentStep.label} · {currentStep.pct}%
+              </div>
+            </div>
+
+            <div className="krono-chrono-footer">
+              All-in-one organizer · Keep moving forward
             </div>
           </div>
         </div>

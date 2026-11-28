@@ -1378,3 +1378,265 @@ button, input, select, textarea {
   color: #38bdf8;
   text-decoration: underline;
 }
+
+// ============================================
+// CHRONO SPLASH, UNIFIED MULTIPURPOSE PALETTE & SCATTERED 3D MASCOTS
+// ============================================
+
+.krono-splash-overlay.krono-chrono-splash {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 9999 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: radial-gradient(circle at 50% 38%, #0e213d 0%, #060d1a 65%, #040811 100%) !important;
+  color: #f8fafc !important;
+  transition: opacity 0.45s cubic-bezier(0.22, 1, 0.36, 1), transform 0.45s cubic-bezier(0.22, 1, 0.36, 1) !important;
+}
+
+.krono-splash-overlay.krono-chrono-splash.is-exiting {
+  opacity: 0 !important;
+  transform: scale(1.03) !important;
+  pointer-events: none !important;
+}
+
+.krono-chrono-stage {
+  width: 100%;
+  max-width: 380px;
+  min-height: 82dvh;
+  padding: 28px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  text-align: center;
+}
+
+.krono-chrono-ring-wrap {
+  position: relative;
+  width: 156px;
+  height: 156px;
+  display: grid;
+  place-items: center;
+  margin-top: 24px;
+}
+
+.krono-chrono-orbit {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid rgba(148, 163, 184, 0.16);
+  border-top-color: #38bdf8;
+  border-right-color: rgba(56, 189, 248, 0.45);
+  box-shadow: 0 0 28px rgba(56, 189, 248, 0.22);
+  animation: kronoOrbitSpin 2.4s linear infinite;
+}
+
+.krono-chrono-core {
+  width: 122px;
+  height: 122px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  box-shadow: inset 0 0 24px rgba(56, 189, 248, 0.14);
+}
+
+@keyframes kronoOrbitSpin {
+  to { transform: rotate(360deg); }
+}
+
+.krono-chrono-brand {
+  display: grid;
+  gap: 6px;
+}
+
+.krono-chrono-title {
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  color: #f8fafc;
+}
+
+.krono-chrono-pillars {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  color: #38bdf8;
+}
+
+.krono-chrono-progress-wrap {
+  width: 100%;
+  max-width: 240px;
+  display: grid;
+  gap: 10px;
+}
+
+.krono-chrono-track {
+  width: 100%;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.18);
+  overflow: hidden;
+}
+
+.krono-chrono-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: #38bdf8;
+  transition: width 420ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.krono-chrono-status {
+  font-size: 12px;
+  color: #cbd5e1;
+  letter-spacing: 0.02em;
+}
+
+.krono-chrono-footer {
+  font-size: 11.5px;
+  color: #64748b;
+}
+
+// Unified palette on Everything in Sync gate
+.krono-onboard-backdrop.krono-dark-unified .krono-onboard-dot {
+  background: #38bdf8 !important;
+}
+
+.krono-pillar-tag {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  padding: 3px 8px;
+  border-radius: 999px;
+  color: #7dd3fc;
+  background: rgba(56, 189, 248, 0.12);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  flex-shrink: 0;
+}
+
+.krono-terms-check {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: #cbd5e1;
+  cursor: pointer;
+  margin: 2px 0;
+}
+
+.krono-terms-check input {
+  width: 16px;
+  height: 16px;
+  accent-color: #38bdf8;
+}
+
+// Scattered 3D Mascots: Gym top-center, others scattered around top/sides (no bottom mascot strip)
+.krono-scatter-stage {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  overflow: hidden;
+  perspective: 1100px;
+}
+
+.krono-scatter-mascot {
+  position: absolute;
+  width: 78px;
+  height: 78px;
+  border-radius: 22px;
+  padding: 3px;
+  background: rgba(15, 23, 42, 0.85);
+  border: 1.5px solid rgba(56, 189, 248, 0.45);
+  box-shadow: 0 18px 34px rgba(0, 0, 0, 0.55);
+  transform-style: preserve-3d;
+}
+
+.krono-scatter-mascot img {
+  width: 100%;
+  height: 100%;
+  border-radius: 19px;
+  object-fit: cover;
+  display: block;
+}
+
+// Gym mascot at top-center
+.krono-scatter-mascot.is-gym-top-center {
+  top: max(18px, env(safe-area-inset-top, 18px));
+  left: 50%;
+  width: 86px;
+  height: 86px;
+  animation: krono3dGymTop 3.6s ease-in-out infinite;
+}
+
+// Study / Schedule mascot scattered upper-left
+.krono-scatter-mascot.is-study-left {
+  top: 15%;
+  left: 6%;
+  animation: krono3dScatterLeft 4.1s ease-in-out infinite;
+}
+
+// Route / Study companion mascot scattered upper-right
+.krono-scatter-mascot.is-study-right {
+  top: 19%;
+  right: 6%;
+  animation: krono3dScatterRight 4.4s ease-in-out infinite;
+}
+
+@keyframes krono3dGymTop {
+  0%, 100% {
+    transform: translateX(-50%) perspective(900px) rotateX(10deg) translateZ(18px) translateY(0px);
+  }
+  50% {
+    transform: translateX(-50%) perspective(900px) rotateX(2deg) translateZ(32px) translateY(-8px);
+  }
+}
+
+@keyframes krono3dScatterLeft {
+  0%, 100% {
+    transform: perspective(900px) rotateY(22deg) rotateZ(-10deg) translateY(0px);
+  }
+  50% {
+    transform: perspective(900px) rotateY(12deg) rotateZ(-5deg) translateY(-9px);
+  }
+}
+
+@keyframes krono3dScatterRight {
+  0%, 100% {
+    transform: perspective(900px) rotateY(-22deg) rotateZ(10deg) translateY(0px);
+  }
+  50% {
+    transform: perspective(900px) rotateY(-12deg) rotateZ(5deg) translateY(-9px);
+  }
+}
+
+.krono-login-card.krono-login-card-clean {
+  margin-top: 76px;
+}
+
+@media (max-width: 520px) {
+  .krono-scatter-mascot {
+    width: 64px;
+    height: 64px;
+    border-radius: 18px;
+  }
+  .krono-scatter-mascot img {
+    border-radius: 15px;
+  }
+  .krono-scatter-mascot.is-gym-top-center {
+    width: 72px;
+    height: 72px;
+  }
+  .krono-scatter-mascot.is-study-left {
+    top: 12%;
+    left: 4%;
+  }
+  .krono-scatter-mascot.is-study-right {
+    top: 14%;
+    right: 4%;
+  }
+}
